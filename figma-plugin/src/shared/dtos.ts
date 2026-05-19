@@ -75,6 +75,7 @@ export interface TextElement {
   id: string
   name: string
   characters: string
+  textAutoResize: 'NONE' | 'WIDTH_AND_HEIGHT' | 'HEIGHT' | 'TRUNCATE'
   /** True when the source string contains no hard line break (`\n`) — i.e.
    * a single paragraph. Used for paragraph-spacing skip. Does NOT imply the
    * text renders on one visual line. */
@@ -92,8 +93,8 @@ export interface TextElement {
   parentChain: string[]
 }
 
-export interface InteractiveElement {
-  kind: 'interactive'
+export interface NonTextContrastElement {
+  kind: 'non-text-contrast'
   id: string
   name: string
   // Drawn shapes (RECTANGLE / ELLIPSE / POLYGON / STAR / LINE) are included
@@ -149,24 +150,31 @@ export interface FormInputElement {
   kind: 'form-input'
   id: string
   name: string
+  nodeType: string
+  cornerRadius: number | null
   mainComponentName: string
   childTextNodes: FormInputChildText[]
   hasExternalLabel: boolean
   bbox: BBox
 }
 
-export type ClickableSignal = 'component-name' | 'variant-states' | 'designer-marked'
+export type ClickableSignal =
+  | 'component-name'
+  | 'variant-states'
+  | 'icon-wrapper'
+  | 'designer-marked'
 
 /**
  * A node classified as a clickable / tap target. Used by criteria that care
  * about *user intent* to click — Link Purpose (2.4.4), Touch Target (2.5.8),
- * etc. Distinct from `InteractiveElement` (which lives in src/read/interactive.ts
- * and finds non-text contrast targets — vectors, shapes, icons — regardless
- * of clickability).
+ * etc. Distinct from `NonTextContrastElement` (which lives in
+ * src/read/non-text-contrast.ts and finds non-text contrast targets —
+ * vectors, shapes, icons — regardless of clickability).
  *
- * Identification is deliberately conservative: component-name regex match OR
- * a variant set with interactive states (Hover / Focus / Pressed). Form inputs
- * are excluded — they ride their own DTO path and aren't relevant to 2.4.4.
+ * Identification is deliberately conservative: component-name regex match,
+ * interactive variant states (Hover / Focus / Pressed), icon-wrapper heuristic,
+ * or designer Include marker. Form inputs are excluded — they ride their own
+ * DTO path and aren't relevant to 2.4.4.
  *
  * Plain text content (all visible text descendants, normalized) is captured
  * up-front so runners stay pure DTO consumers.
@@ -175,6 +183,8 @@ export interface ClickableElement {
   kind: 'clickable'
   id: string
   name: string
+  nodeType: string
+  cornerRadius: number | null
   /** Name of the component-set or main component that fired the name signal, if any. */
   componentName: string | null
   /** All visible text descendants joined in document order, raw (untrimmed). */
@@ -224,7 +234,7 @@ export interface ComponentMeta {
 export interface AuditDTO {
   component: ComponentMeta
   texts: TextElement[]
-  interactives: InteractiveElement[]
+  nonTextContrast: NonTextContrastElement[]
   images: ImageElement[]
   formInputs: FormInputElement[]
   clickables: ClickableElement[]

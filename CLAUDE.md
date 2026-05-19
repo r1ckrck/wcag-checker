@@ -1,4 +1,4 @@
-# WCAG Figma Accessibility Tester
+# Maanak — Accessibility Checker
 
 > This folder lives inside `.claude/skills/` when deployed. This CLAUDE.md is for active development only.
 
@@ -7,7 +7,7 @@ Build a Claude Code skill that audits Figma designs for WCAG 2.1 Level AA compli
 
 ## Project Structure
 ```
-wcga-checker/
+wcag-checker/
 ├── SKILL.md                     (main skill definition & orchestration)
 ├── docs/
 │   ├── testing-workflow.md      (5-phase workflow + all data schemas — source of truth)

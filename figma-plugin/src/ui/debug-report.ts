@@ -22,7 +22,7 @@ export function formatDebugReport(
     section_findings('Unable to test', findings.unableToTest),
     section_findings('Passed', findings.passes),
     section_textsTrace(dto),
-    section_interactivesTrace(dto),
+    section_nonTextContrastTrace(dto),
     section_imagesTrace(dto),
     section_formInputsTrace(dto),
     section_variantsTrace(dto),
@@ -39,7 +39,7 @@ export function formatDebugReport(
 function section_header(dto: AuditDTO, meta: DebugReportMeta): string {
   const c = dto.component
   return [
-    `# WCAG Audit Debug — ${meta.generatedAt}`,
+    `# Maanak — Accessibility Checker · debug — ${meta.generatedAt}`,
     `Plugin v${meta.pluginVersion} · Component: ${c.name} (${c.type}) · ${c.id} · ${c.width}×${c.height} · page "${c.pageName}"${c.modeName ? ` · mode "${c.modeName}"` : ''}`,
   ].join('\n')
 }
@@ -103,13 +103,13 @@ function section_textsTrace(dto: AuditDTO): string {
   return lines.join('\n')
 }
 
-function section_interactivesTrace(dto: AuditDTO): string {
-  const lines: string[] = [`## Read trace — Interactives (${dto.interactives.length})`]
-  if (dto.interactives.length === 0) {
+function section_nonTextContrastTrace(dto: AuditDTO): string {
+  const lines: string[] = [`## Read trace — Non-text contrast (${dto.nonTextContrast.length})`]
+  if (dto.nonTextContrast.length === 0) {
     lines.push('(none)')
     return lines.join('\n')
   }
-  for (const it of dto.interactives) {
+  for (const it of dto.nonTextContrast) {
     lines.push(``)
     lines.push(`### "${escapeInline(it.name)}" · ${it.id} · ${it.nodeType}`)
     lines.push(`- isIconOnly: ${it.isIconOnly}`)

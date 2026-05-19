@@ -6,7 +6,7 @@ import type { AuditDTO, FormInputElement } from '../../shared/dtos.ts'
 const baseDTO = (formInputs: FormInputElement[]): AuditDTO => ({
   component: { id: '0:1', name: 'C', type: 'COMPONENT', width: 0, height: 0, pageId: 'p', pageName: 'P', modeName: null },
   texts: [],
-  interactives: [],
+  nonTextContrast: [],
   images: [],
   formInputs,
   clickables: [],
@@ -18,6 +18,8 @@ const input = (over: Partial<FormInputElement>): FormInputElement => ({
   kind: 'form-input',
   id: over.id ?? 'i:1',
   name: over.name ?? 'Email',
+  nodeType: over.nodeType ?? 'INSTANCE',
+  cornerRadius: over.cornerRadius ?? 4,
   mainComponentName: over.mainComponentName ?? 'TextField',
   childTextNodes: over.childTextNodes ?? [],
   hasExternalLabel: over.hasExternalLabel ?? false,

@@ -65,6 +65,51 @@ test('3.3.2 — same flag message collapses', () => {
   assert.equal(groups.length, 1)
 })
 
+test('text-reflow — same resize mode collapses', () => {
+  const findings = [
+    flag('text-reflow', 'a', 'Body', { textAutoResize: 'NONE' }),
+    flag('text-reflow', 'b', 'Caption', { textAutoResize: 'NONE' }),
+    flag('text-reflow', 'c', 'Deprecated', { textAutoResize: 'TRUNCATE' }),
+  ]
+  const groups = groupSimilar(findings)
+  assert.equal(groups.length, 2)
+  assert.equal(groups[0].members.length, 2)
+})
+
+test('2.4.6 — same offending text collapses (case-insensitive)', () => {
+  const findings = [
+    flag('2.4.6', 'a', 'Btn 1', { text: 'Button', source: 'clickable' }),
+    flag('2.4.6', 'b', 'Btn 2', { text: 'button', source: 'clickable' }),
+    flag('2.4.6', 'c', 'Other', { text: 'Text 1', source: 'clickable' }),
+  ]
+  const groups = groupSimilar(findings)
+  assert.equal(groups.length, 2)
+  assert.equal(groups[0].members.length, 2)
+  assert.deepEqual(groups[0].nodes.map(n => n.name), ['Btn 1', 'Btn 2'])
+  assert.equal(groups[1].members.length, 1)
+})
+
+test('2.4.6 — missing text stays singleton', () => {
+  const findings = [
+    flag('2.4.6', 'a', 'A', {}),
+    flag('2.4.6', 'b', 'B', {}),
+  ]
+  const groups = groupSimilar(findings)
+  assert.equal(groups.length, 2)
+})
+
+test('2.5.8 — same target dimensions collapse', () => {
+  const findings = [
+    flag('2.5.8', 'a', 'Icon 1', { width: 16, height: 16, required: 24 }),
+    flag('2.5.8', 'b', 'Icon 2', { width: 16, height: 16, required: 24 }),
+    flag('2.5.8', 'c', 'Short button', { width: 48, height: 16, required: 24 }),
+  ]
+  const groups = groupSimilar(findings)
+  assert.equal(groups.length, 2)
+  assert.equal(groups[0].members.length, 2)
+  assert.deepEqual(groups[0].nodes.map(n => n.name), ['Icon 1', 'Icon 2'])
+})
+
 test('Variant findings always stay singleton', () => {
   const findings = [
     flag('1.4.1', null as unknown as string, 'C', {}),

@@ -1,18 +1,20 @@
-# WCAG Checker
+# Maanak — Accessibility Checker
 
-Audit a Figma component against WCAG 2.1 Level AA. Two versions — pick the one that matches how you work.
+> *Maanak* (मानक) — "standard."
+
+Audit a Figma component against **WCAG 2.1 / 2.2 Level AA**, with the equivalent **GIGW 3.0** and **IS 17802** obligations surfaced inline. Two versions — pick the one that matches how you work.
 
 | | Claude Code skill | Figma plugin |
 |---|---|---|
 | **Lives in** | Claude Code (CLI / IDE / web) | Figma Desktop |
-| **You invoke it by** | Typing `/wcag-checker` in chat | Importing the manifest, then **Plugins → Development → WCAG AA Auditor** |
+| **You invoke it by** | Typing `/wcag-checker` in chat | Importing the manifest, then **Plugins → Development → Maanak — Accessibility Checker** |
 | **Audience** | Anyone already using Claude Code; engineers, technical designers | Designers, PMs, anyone in Figma |
 | **Talks to Figma via** | Figma Desktop MCP (Dev Mode) | Native Figma Plugin API |
 | **AI for visual review** | Uses your Claude Code model | Bring your own OpenRouter / Anthropic / Google key |
 | **Install** | Already there if you have Claude Code; this repo's skill files register automatically | Download zip from Releases, import manifest |
 | **Lives in this repo at** | `SKILL.md`, `agents/`, `commands/`, `docs/`, `scripts/` | `figma-plugin/` |
 
-Both versions check the same 9 WCAG criteria, produce the same audit format, and arrive at the same conclusions. Pick the version that fits your workflow.
+Both share the same audit format and core WCAG math. The **Claude Code skill** (invoked as `/wcag-checker` — the command name is unchanged) covers the original 9-criteria set; the **Figma plugin**, *Maanak — Accessibility Checker*, has since grown the wider set listed below (Link Purpose, Headings & Labels, Target Size, a text-reflow heuristic, a designer marker layer, and the WCAG·GIGW·IS standards-mapping affordance). Pick the version that fits your workflow.
 
 > **MCP** = Model Context Protocol — the bridge that lets Claude Code read structured data from Figma Desktop's Dev Mode. The plugin doesn't use MCP because it runs *inside* Figma and reads nodes via Figma's own Plugin API.
 
@@ -25,7 +27,7 @@ The plugin ships as a single zip per release. No Node, no terminal, no source bu
 1. Grab the latest zip from [Releases](https://github.com/r1ckrck/wcag-checker/releases/latest)
 2. Unzip
 3. Open Figma Desktop → **Plugins → Development → Import plugin from manifest…** → pick `manifest.json`
-4. Run via **Plugins → Development → WCAG AA Auditor**
+4. Run via **Plugins → Development → Maanak — Accessibility Checker**
 
 The deterministic checks (color contrast, typography, form labels, variant focus/error states) run immediately on whatever component you have selected — no setup needed.
 
@@ -66,21 +68,30 @@ The full skill workflow is documented in [`docs/testing-workflow.md`](./docs/tes
 
 ## What gets checked
 
-Both versions run the same 9 deterministic WCAG 2.1 AA criteria:
+Core criteria both versions share:
 
 | Code | Name | What it tests |
 |---|---|---|
-| 1.4.1 | Use of Color | Error states differ from default by more than just color |
+| 1.4.1 | Use of Color | Error states differ from default by more than just color *(plugin: opt-in variant audit)* |
 | 1.4.3 | Contrast (Minimum) | Text contrast ≥ 4.5:1 (or 3:1 for large text) |
 | 1.4.5 | Images of Text | Asset names + AI classifier for baked-in UI text |
 | 1.4.11 | Non-Text Contrast | Interactive shapes vs background ≥ 3:1 |
-| 1.4.12 | Text Spacing | Line-height ≥ 1.5×, letter-spacing ≥ 0.12× |
-| 2.4.7 | Focus Visible | Focus state is visually distinct from default |
-| 3.3.1 | Error Identification | Errors use more than just color to communicate |
+| 2.4.7 | Focus Visible | Focus state is visually distinct from default *(plugin: opt-in variant audit)* |
+| 3.3.1 | Error Identification | Errors use more than just color to communicate *(plugin: opt-in variant audit)* |
 | 3.3.2 | Labels or Instructions | Form inputs have labels (real or geometrically inferred) |
-| 3.3.3 | Error Suggestion | Error text is specific, not vague |
+| 3.3.3 | Error Suggestion | Error text is specific, not vague *(plugin: opt-in variant audit)* |
 
-Plus an **AI-augmented visual review** for issues a deterministic check can't catch (visual hierarchy gaps, color-coded grouping, etc.) and three **manual checks** always shown as a bottom note (1.3.3 Sensory Characteristics, 2.2.2 Pause/Stop/Hide, 2.5.1 Pointer Gestures + Motion Actuation).
+**Figma plugin — additional coverage** beyond the shared set:
+
+| Code | Name | What it tests |
+|---|---|---|
+| 2.4.4 | Link Purpose (In Context) | Flags vague clickable text (`read more`, `click here`, …) |
+| 2.4.6 | Headings & Labels | Flags placeholder copy on clickables, form labels, and standalone text, behind a numeric/URL/date/short-word reject filter |
+| 2.5.8 | Target Size (Minimum) | Clickable + form-input bbox ≥ 24×24 px |
+| — | Typography readability | Line-height / letter-spacing / paragraph-spacing floors (a design-stage readability check, not a codified SC) |
+| — | Text reflow | Fixed-height text-box heuristic; surfaced in the UI as 1.4.4 · 1.4.10 · 1.4.12 |
+
+Plus an **AI-augmented visual review** for issues a deterministic check can't catch (visual hierarchy gaps, color-coded grouping, etc.) and **manual checks** always shown as a bottom note (1.3.3 Sensory Characteristics, 2.2.1 Timing Adjustable, 2.2.2 Pause/Stop/Hide, 2.5.1 Pointer Gestures + Motion Actuation).
 
 ---
 

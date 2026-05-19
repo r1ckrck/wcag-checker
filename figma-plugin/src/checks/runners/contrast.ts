@@ -9,7 +9,7 @@ import type {
   ResolvedFill,
   TextElement,
   TextSegment,
-  InteractiveElement,
+  NonTextContrastElement,
 } from '../../shared/dtos'
 import type { Finding } from '../findings.ts'
 import { checkContrast, type RGB } from '../contrast.ts'
@@ -52,7 +52,7 @@ export function runContrastCheck(dto: AuditDTO): Finding[] {
   for (const text of dto.texts) {
     findings.push(...auditTextContrast(text))
   }
-  for (const it of dto.interactives) {
+  for (const it of dto.nonTextContrast) {
     findings.push(auditInteractiveContrast(it))
   }
 
@@ -175,7 +175,7 @@ function auditTextContrast(text: TextElement): Finding[] {
  * opacity 0, or a fully-transparent stack) is also skipped — it paints
  * nothing on the canvas, so it shouldn't influence the audit math.
  */
-function pickProbe(it: InteractiveElement): ResolvedFill | null {
+function pickProbe(it: NonTextContrastElement): ResolvedFill | null {
   if (isUsableProbe(it.stroke)) return it.stroke
   if (isUsableProbe(it.fill)) return it.fill
   return null
@@ -200,7 +200,7 @@ function describeColorSource(s: ColorSource): string {
   }
 }
 
-function auditInteractiveContrast(it: InteractiveElement): Finding {
+function auditInteractiveContrast(it: NonTextContrastElement): Finding {
   const bgReason = bgUnresolvableReason(it.background)
   if (bgReason) {
     return {

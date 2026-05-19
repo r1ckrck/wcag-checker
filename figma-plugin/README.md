@@ -1,6 +1,10 @@
-# WCAG AA Auditor — Figma Plugin
+# Maanak — Accessibility Checker
 
-Single-component WCAG 2.1 Level AA audit, runs entirely inside Figma. Nine deterministic checks (1.4.1, 1.4.3, 1.4.5, 1.4.11, 1.4.12, 2.4.7, 3.3.1, 3.3.2, 3.3.3) plus two AI-augmented checks (visual review + image-of-text classification). The AI checks call your chosen provider — OpenRouter, Anthropic, or Google — using a key you paste once into the plugin's settings panel; the key is stored per-user in `figma.clientStorage` and never ships in source.
+> *Maanak* (मानक) — "standard."
+
+Single-component accessibility audit, runs entirely inside Figma. Tests against **WCAG 2.1 / 2.2 Level AA** and surfaces the equivalent **GIGW 3.0** and **IS 17802** obligations (both adopt WCAG by reference) inline on every finding. Deterministic checks (1.4.3, 1.4.5, 1.4.11, 2.4.4, 2.4.6, 2.5.8, 3.3.2, plus typography-readability and text-reflow heuristics) and an opt-in variant audit (1.4.1, 2.4.7, 3.3.1, 3.3.3), plus two AI-augmented checks (visual review + image-of-text classification). The AI checks call your chosen provider — OpenRouter, Anthropic, or Google — using a key you paste once into the plugin's settings panel; the key is stored per-user in `figma.clientStorage` and never ships in source.
+
+**Standards mapping:** each finding's WCAG code is an expandable affordance — open it to see `WCAG <sc> · GIGW 3.0 §5.2 · IS 17802 web`. Collapsed, it looks exactly like a plain code; the cross-mapping is opt-in and never in the way.
 
 **No server. No env files. One folder.**
 
@@ -20,7 +24,7 @@ npm run dev
 #    Pick figma-plugin/manifest.json
 ```
 
-After importing once, run via **Plugins → Development → WCAG AA Auditor** or `⌥⌘P` to re-run the last plugin.
+After importing once, run via **Plugins → Development → Maanak — Accessibility Checker** or `⌥⌘P` to re-run the last plugin.
 
 ## First-run AI setup
 
@@ -33,7 +37,7 @@ Header shows **AI: not set up** with a small cog icon to its right. Click either
 
 To turn AI off temporarily without losing the key, click the **AI: on** indicator. Click again to flip back. To wipe the key, open settings → **Clear key** (two-click confirm).
 
-Deterministic checks always work — even with no key configured, you get the full Color & Contrast / Typography / Forms-and-errors / Variant audit / Manual sections. The AI sections render a *needs-setup* state with a button that opens settings.
+Deterministic checks always work — even with no key configured, you get the full Color & contrast / Typography / Forms & errors / Interactive elements / Content & labels / Variant audit / Manual sections. The AI sections render a *needs-setup* state with a button that opens settings.
 
 ## Provider notes
 
@@ -52,7 +56,7 @@ OpenAI is not a direct tab — `api.openai.com` blocks browser CORS. Reach GPT m
 | `npm run dev` | esbuild + HTML inliner in watch mode (~30 ms rebuild) |
 | `npm run build` | one-shot production build (minified) |
 | `npm run typecheck` | `tsc --noEmit` — strict mode |
-| `npm test` | `node:test` over `src/**/__tests__/*.test.ts` (162 tests) |
+| `npm test` | `node:test` over `src/**/__tests__/*.test.ts` (337 tests) |
 
 ## Iterate
 
@@ -69,8 +73,12 @@ OpenAI is not a direct tab — `api.openai.com` blocks browser CORS. Reach GPT m
 **Deterministic** (no AI):
 - 1.4.3 Contrast (Minimum), 1.4.11 Non-Text Contrast — luminance ratio per text segment / interactive vs sampled background
 - 1.4.5 Images of Text — name heuristic (the AI section catches the rest)
-- 1.4.12 Text Spacing — line-height / letter-spacing thresholds, with a single-visual-line auto-pass for line-height
+- 2.4.4 Link Purpose (In Context) — flags vague clickable text (`read more`, `click here`, …)
+- 2.4.6 Headings & Labels — flags placeholder copy on clickables, form labels, and standalone text (`Button`, `Heading`, `Lorem`, `xxx`, …) behind a numeric/URL/date/short-word reject filter
+- 2.5.8 Target Size (Minimum) — clickable + form-input bbox must be ≥ 24×24 px
 - 3.3.2 Labels or Instructions — external sibling label OR drawn inner-input-box geometric detection OR name fallback
+- Typography readability *(non-SC)* — line-height / letter-spacing / paragraph-spacing floors, single-visual-line auto-pass for line-height
+- Text reflow — fixed-height text-box heuristic; UI labels it 1.4.4 · 1.4.10 · 1.4.12
 
 **Variant audit** (opt-in via the "Run variant audit" button):
 - 1.4.1 Use of Color, 2.4.7 Focus Visible, 3.3.1 Error Identification, 3.3.3 Error Suggestion — tree + property diff between default / focus / error variants
@@ -81,8 +89,19 @@ OpenAI is not a direct tab — `api.openai.com` blocks browser CORS. Reach GPT m
 
 **Manual** (always shown as a slim bottom note):
 - 1.3.3 Sensory Characteristics
+- 2.2.1 Timing Adjustable
 - 2.2.2 Pause, Stop, Hide
 - 2.5.1 Pointer Gestures + Motion Actuation
+
+## Mark interactive elements
+
+A **Mark** button in the header opens a full-panel page where designers can override the interactivity classifier per node:
+
+- **Include** — force a node to count as a clickable / tap target the classifier missed
+- **Exclude** — suppress a node the classifier wrongly flagged
+- **Neutral** — classifier decides (default)
+
+Markers are stored per-user, per-file in `figma.clientStorage`, pruned of stale node IDs on every run. They feed Link Purpose (2.4.4) and Touch Target (2.5.8). Include-marked ancestors absorb their descendants so the audit treats the marked node as the whole target.
 
 ## Layout
 
@@ -131,7 +150,7 @@ Design system in [`assets/design.md`](./assets/design.md). Key rules:
 - **Display font sanctioned in two places only** — hero and sign-off.
 - **8-point spacing scale** — all values come from `--space-1` … `--space-9` tokens.
 - **Hairlines, never borders or drop shadows** — `var(--hairline)` at 30% opacity.
-- **Icons are Phosphor Duotone**, color via `currentColor`.
+- **Icons are Phosphor Duotone** — two inherited channels: `color` drives outline + solid marks, `fill: var(--icon-secondary)` drives the receding backing. Status icons recolor only `color` (`--status-pass` sage / `--status-flag` terracotta / `--status-unable` gold), so the backing never reads as a colored box.
 - **Light / dark via `prefers-color-scheme`** — both modes share token names; only values flip.
 
 Fonts (General Sans Variable + JetBrains Mono Regular/Medium/Bold) ship in `assets/fonts/` and are base64-inlined into `ui.html` at build time — no network fetch, no system fallback.

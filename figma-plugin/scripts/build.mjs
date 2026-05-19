@@ -140,8 +140,37 @@ async function loadMonogram() {
 // strips the outer <svg> wrapper, and rewraps as <symbol id="icon-<name>">
 // preserving the original viewBox. Consumers reference via:
 //   <svg class="icon"><use href="#icon-<name>"/></svg>
-// Phosphor duotone SVGs use currentColor + per-path opacity, so the duotone
-// effect comes from `color:` on the wrapper — no per-icon recoloring.
+//
+// Phosphor's raw duotone SVGs only put `stroke="currentColor"` on the OUTLINE
+// paths. Two other element kinds carry NO fill attribute and so default to
+// black, ignoring the design tokens:
+//   1. the translucent duotone backing shape (always has opacity="0.2")
+//   2. solid primary marks (no opacity — e.g. the warning exclamation dot)
+//
+// design.md is explicit: the outline + primary marks carry the structural
+// color; the duotone backing must RECEDE as a muted neutral. `color` and
+// `fill` are both inherited and cross the <use>/<symbol> boundary, so we
+// drive them as two independent channels (set on `.icon` in styles.css):
+//   • color → currentColor → outline strokes + solid primary marks
+//   • fill  → var(--icon-secondary) → the fill-less duotone backing
+//
+// Transform rules (elements that already declare `fill=` — outline
+// `fill="none"` and the bbox rect — are left untouched):
+//   • has opacity, no fill  → duotone backing: leave fill-less so it
+//     INHERITS the muted `fill` from `.icon`
+//   • no opacity, no fill   → solid primary mark: pin to `fill="currentColor"`
+//     so it tracks the semantic color, not the muted backing
+function tintDuotone(inner) {
+  return inner.replace(
+    /<(path|polyline|polygon|circle|line|ellipse|rect)\b([^>]*?)(\s*\/?)>/g,
+    (match, tag, attrs, tail) => {
+      if (/\bfill\s*=/.test(attrs)) return match
+      if (/\bopacity\s*=/.test(attrs)) return match
+      return `<${tag}${attrs} fill="currentColor"${tail}>`
+    }
+  )
+}
+
 async function loadPhosphorSprite() {
   const symbols = await Promise.all(
     PHOSPHOR_ICON_NAMES.map(async name => {
@@ -154,7 +183,7 @@ async function loadPhosphorSprite() {
         .replace(/<svg[^>]*>/, '')
         .replace(/<\/svg>\s*$/, '')
         .trim()
-      return `<symbol id="icon-${name}" viewBox="${viewBox}">${inner}</symbol>`
+      return `<symbol id="icon-${name}" viewBox="${viewBox}">${tintDuotone(inner)}</symbol>`
     })
   )
   return `<svg class="phosphor-sprite" aria-hidden="true">${symbols.join('')}</svg>`

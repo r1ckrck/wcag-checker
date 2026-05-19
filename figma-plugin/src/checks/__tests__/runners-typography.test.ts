@@ -38,6 +38,7 @@ const text = (over: Partial<TextElement> = {}): TextElement => ({
   id: over.id ?? 't:1',
   name: over.name ?? 'Body',
   characters: 'Hello',
+  textAutoResize: over.textAutoResize ?? 'HEIGHT',
   isSingleLine: over.isSingleLine ?? true,
   isSingleVisualLine: over.isSingleVisualLine ?? true,
   // Default paragraphSpacing 16px ≈ 76% of the default 21px line-height —
@@ -63,7 +64,7 @@ const image = (over: Partial<ImageElement>): ImageElement => ({
 const dto = (over: Partial<AuditDTO> = {}): AuditDTO => ({
   component: { id: '0:1', name: 'C', type: 'COMPONENT', width: 0, height: 0, pageId: 'p', pageName: 'P', modeName: null },
   texts: over.texts ?? [],
-  interactives: [],
+  nonTextContrast: [],
   images: over.images ?? [],
   formInputs: [],
   clickables: [],

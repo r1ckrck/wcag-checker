@@ -20,6 +20,15 @@
   --hairline-soft: rgba(31, 31, 31, 0.12);
   --accent: #5c3f4e;
 
+  /* Status colors — kept in sync with assets/tokens.css (source of truth).
+     --status-exclude: Mark-page exclude marker. The trio below tints the
+     audit-result status icons (pass/flag/unable). Muted earth tones that
+     sit with the palette; never used on the duotone backing. */
+  --status-exclude: #b5703b;
+  --status-pass: #5f7a47;
+  --status-flag: #a14738;
+  --status-unable: #8b7530;
+
   --icon-primary: var(--fg);
   --icon-secondary: var(--mute);
 
@@ -62,6 +71,12 @@
     --hairline: rgba(242, 238, 227, 0.3);
     --hairline-soft: rgba(242, 238, 227, 0.12);
     --accent: #b89aaa;
+
+    /* Lifted status variants for dark — same hues, brighter for #111. */
+    --status-exclude: #dda76a;
+    --status-pass: #a2bc79;
+    --status-flag: #d38478;
+    --status-unable: #d0ba66;
 
     --btn-bg: var(--fg);
     --btn-fg: var(--bg);
@@ -990,15 +1005,33 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
-/* Phosphor duotone icon. The wrapping element's `color` drives both paths:
-   the outline uses currentColor, the secondary fill uses currentColor with
-   per-path opacity (typically 0.2). One color setting → duotone effect. */
+/* Phosphor duotone icon. Two inherited channels drive the duotone effect
+   (both cross the <use>/<symbol> boundary):
+     • color → currentColor → outline strokes + solid primary marks
+     • fill  → the fill-less duotone backing shape (opacity 0.2), which
+       recedes as a muted neutral per design.md
+   Recoloring a status icon overrides only `color`, so the backing always
+   stays muted and never reads as a colored box. */
 .icon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
   color: var(--icon-primary);
+  fill: var(--icon-secondary);
 }
+
+/* Semantic status tinting for the audit-result stat trio. Applies to:
+   • count chips (top stats + per-group card stats)
+   • inline section-label icons inside flagged / passed / unable summaries
+   Severity dots, accent buttons, and header icons (cog, mark, back) are
+   deliberately untouched. */
+.results__stat--check .icon { color: var(--status-pass); }
+.results__stat--warning .icon { color: var(--status-flag); }
+.results__stat--prohibit .icon { color: var(--status-unable); }
+
+.section-label__icon--check .icon { color: var(--status-pass); }
+.section-label__icon--warning .icon { color: var(--status-flag); }
+.section-label__icon--prohibit .icon { color: var(--status-unable); }
 
 .phosphor-sprite {
   display: none;
@@ -1801,6 +1834,75 @@ button.findings-row__name--clickable:focus-visible {
   color: var(--mute);
 }
 
+/* Standards mapping — collapsed shows the WCAG code(s) exactly as before;
+   expanding reveals the by-reference cross-map (WCAG · GIGW 3.0 §5.2 ·
+   IS 17802 web). Native <details>, mirroring the pass/unable disclosure
+   marker-hide + caret idiom. The summary keeps .finding-item__code styling
+   so the collapsed state is visually unchanged apart from a faint caret. */
+.finding-item__standards {
+  flex-shrink: 0;
+  /* Anchor for the absolute-positioned open panel. The <details> box itself
+     stays summary-sized whether open or closed, so the flex title row never
+     gives up width and the title never reflows. */
+  position: relative;
+}
+
+.finding-item__standards > summary {
+  display: inline-block;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.finding-item__standards > summary::-webkit-details-marker {
+  display: none;
+}
+
+.finding-item__standards > summary::marker {
+  content: '';
+}
+
+/* Caret AFTER the code (::after, not ::before) so it trails the code text
+   rather than leading it — same ▸/▾ glyphs the disclosures use. */
+.finding-item__standards > summary::after {
+  content: ' ▸';
+  color: var(--mute);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.finding-item__standards[open] > summary::after {
+  content: ' ▾';
+}
+
+/* Open panel: taken out of normal flow (absolute) so it never competes for
+   row width — the title and every other row stay exactly put. Drops just
+   below the code, right-aligned, and stacks one short line per standard
+   (2–3 lines). Opaque --bg + hairline so it reads cleanly over whatever
+   sits beneath it on the right. */
+.finding-item__standards-list {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.finding-item__standards-line {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--mute);
+  line-height: 1.5;
+}
+
 .finding-item__names {
   font-family: var(--font-body);
   font-size: 12px;
@@ -1908,6 +2010,54 @@ button.findings-row__name--clickable:focus-visible {
 
 .contrast-numerics__value {
   color: var(--fg);
+}
+
+/* ── 2.5.8 — target-size diagram + numerics ─────────────────────── */
+
+.finding-item__visual--touch-target {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.touch-target-diagram {
+  position: relative;
+  width: 76px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.touch-target-shape {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  box-sizing: border-box;
+}
+
+.touch-target-shape--required {
+  border: 1px solid var(--hairline);
+  background: transparent;
+}
+
+.touch-target-shape--actual {
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.touch-target-shape--round {
+  border-radius: 999px;
+}
+
+.touch-target-shape--rect {
+  border-radius: 2px;
+}
+
+.touch-target-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .contrast-on {

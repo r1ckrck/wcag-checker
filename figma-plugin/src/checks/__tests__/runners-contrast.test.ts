@@ -5,7 +5,7 @@ import type {
   AuditDTO,
   TextElement,
   TextSegment,
-  InteractiveElement,
+  NonTextContrastElement,
   ResolvedFill,
   BackgroundSample,
 } from '../../shared/dtos.ts'
@@ -44,6 +44,7 @@ const text = (over: Partial<TextElement> = {}): TextElement => ({
   id: over.id ?? 't:1',
   name: over.name ?? 'Body',
   characters: over.characters ?? 'Hello',
+  textAutoResize: over.textAutoResize ?? 'HEIGHT',
   isSingleLine: true,
   isSingleVisualLine: true,
   paragraphSpacingPx: null,
@@ -53,8 +54,8 @@ const text = (over: Partial<TextElement> = {}): TextElement => ({
   parentChain: [],
 })
 
-const interactive = (over: Partial<InteractiveElement> = {}): InteractiveElement => ({
-  kind: 'interactive',
+const ntc = (over: Partial<NonTextContrastElement> = {}): NonTextContrastElement => ({
+  kind: 'non-text-contrast',
   id: over.id ?? 'v:1',
   name: over.name ?? 'Icon',
   nodeType: 'VECTOR',
@@ -69,7 +70,7 @@ const interactive = (over: Partial<InteractiveElement> = {}): InteractiveElement
 const dto = (over: Partial<AuditDTO> = {}): AuditDTO => ({
   component: { id: '0:1', name: 'C', type: 'COMPONENT', width: 0, height: 0, pageId: 'p', pageName: 'P', modeName: null },
   texts: over.texts ?? [],
-  interactives: over.interactives ?? [],
+  nonTextContrast: over.nonTextContrast ?? [],
   images: [],
   formInputs: [],
   clickables: [],
@@ -160,8 +161,8 @@ test('text: fill source unresolvable → unable-to-test', () => {
 test('interactive: stroke takes precedence over fill', () => {
   const f = runContrastCheck(
     dto({
-      interactives: [
-        interactive({
+      nonTextContrast: [
+        ntc({
           fill: fill([0, 0, 0]),       // would pass alone
           stroke: fill([240, 240, 240]), // pale stroke fails 3:1 vs white bg
         }),
@@ -175,7 +176,7 @@ test('interactive: stroke takes precedence over fill', () => {
 test('interactive: no stroke, fill passes', () => {
   const f = runContrastCheck(
     dto({
-      interactives: [interactive({ fill: fill([0, 0, 0]), stroke: null })],
+      nonTextContrast: [ntc({ fill: fill([0, 0, 0]), stroke: null })],
     })
   )
   const r = f.find(x => x.criterion === '1.4.11')
@@ -185,7 +186,7 @@ test('interactive: no stroke, fill passes', () => {
 test('interactive: neither fill nor stroke determinable → unable-to-test', () => {
   const f = runContrastCheck(
     dto({
-      interactives: [interactive({ fill: null, stroke: null })],
+      nonTextContrast: [ntc({ fill: null, stroke: null })],
     })
   )
   const r = f.find(x => x.criterion === '1.4.11')

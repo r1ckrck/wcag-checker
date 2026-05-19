@@ -12,6 +12,9 @@ import { runContrastCheck } from './runners/contrast.ts'
 import { runTypographyCheck } from './runners/typography.ts'
 import { runFormLabelCheck } from './runners/form-label.ts'
 import { runLinkPurposeCheck } from './runners/link-purpose.ts'
+import { runTextReflowCheck } from './runners/text-reflow.ts'
+import { runTouchTargetCheck } from './runners/touch-target.ts'
+import { runHeadingsLabelsCheck } from './runners/headings-labels.ts'
 import { runVariantCheck } from './runners/variant.ts'
 import { buildManualChecks } from './manual.ts'
 
@@ -21,14 +24,17 @@ import { buildManualChecks } from './manual.ts'
  * audit" action that calls {@link runVariantChecks}.
  */
 export async function runChecks(dto: AuditDTO): Promise<FindingsReport> {
-  const [contrast, typography, formLabel, linkPurpose] = await Promise.all([
+  const [contrast, typography, formLabel, linkPurpose, textReflow, touchTarget, headingsLabels] = await Promise.all([
     Promise.resolve(runContrastCheck(dto)),
     Promise.resolve(runTypographyCheck(dto)),
     Promise.resolve(runFormLabelCheck(dto)),
     Promise.resolve(runLinkPurposeCheck(dto)),
+    Promise.resolve(runTextReflowCheck(dto)),
+    Promise.resolve(runTouchTargetCheck(dto)),
+    Promise.resolve(runHeadingsLabelsCheck(dto)),
   ])
 
-  const all = [...contrast, ...typography, ...formLabel, ...linkPurpose]
+  const all = [...contrast, ...typography, ...formLabel, ...linkPurpose, ...textReflow, ...touchTarget, ...headingsLabels]
   const buckets = aggregate(all)
 
   return {

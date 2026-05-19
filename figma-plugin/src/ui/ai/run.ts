@@ -19,7 +19,7 @@ export interface AuditContext {
   component?: { name?: string; type?: string; width?: number; height?: number }
   counts?: {
     texts?: number
-    interactives?: number
+    nonTextContrast?: number
     images?: number
     formInputs?: number
   }
@@ -146,7 +146,7 @@ function formatContext(ctx: AuditContext | undefined): string {
   if (k) {
     const counts: Record<string, number> = {}
     if (typeof k.texts === 'number') counts.texts = k.texts
-    if (typeof k.interactives === 'number') counts.interactives = k.interactives
+    if (typeof k.nonTextContrast === 'number') counts.nonTextContrast = k.nonTextContrast
     if (typeof k.images === 'number') counts.images = k.images
     if (typeof k.formInputs === 'number') counts.formInputs = k.formInputs
     if (Object.keys(counts).length > 0) payload.counts = counts

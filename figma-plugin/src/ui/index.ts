@@ -40,7 +40,7 @@ import { buildStat } from './icon-stat.ts'
 // gives slow vision models time to think on dense screenshots while still
 // preventing the UI from spinning forever on a hung provider.
 const AI_FETCH_TIMEOUT_MS = 60_000
-const PLUGIN_VERSION = '0.0.1'
+const PLUGIN_VERSION = '0.2.0'
 const TOAST_VISIBLE_MS = 1500
 
 function send(msg: UIToMain): void {
@@ -961,7 +961,7 @@ async function executeVisualReview(
 // dumping the full DTO. Fields are best-effort — the server tolerates absence.
 type AuditContextPayload = {
   component?: { name?: string; type?: string; width?: number; height?: number }
-  counts?: { texts?: number; interactives?: number; images?: number; formInputs?: number }
+  counts?: { texts?: number; nonTextContrast?: number; images?: number; formInputs?: number }
   passed?: string[]
   flagged?: string[]
 }
@@ -970,7 +970,7 @@ function buildAuditContext(dto: unknown, findings: FindingsReport): AuditContext
   const d = dto as {
     component?: { name?: string; type?: string; width?: number; height?: number }
     texts?: unknown[]
-    interactives?: unknown[]
+    nonTextContrast?: unknown[]
     images?: unknown[]
     formInputs?: unknown[]
   }
@@ -987,7 +987,7 @@ function buildAuditContext(dto: unknown, findings: FindingsReport): AuditContext
       : undefined,
     counts: {
       texts: d.texts?.length ?? 0,
-      interactives: d.interactives?.length ?? 0,
+      nonTextContrast: d.nonTextContrast?.length ?? 0,
       images: d.images?.length ?? 0,
       formInputs: d.formInputs?.length ?? 0,
     },

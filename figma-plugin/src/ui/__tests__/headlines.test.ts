@@ -42,6 +42,21 @@ test('3.3.2 → label/placeholder discriminator', () => {
   assert.equal(headlineFor(flag('3.3.2', 'Placeholder only — no visible label.')), 'Placeholder used as label')
 })
 
+test('2.5.8 → static headline', () => {
+  assert.equal(headlineFor(flag('2.5.8', 'Target is 16 × 24 px.')), 'Small touch target')
+})
+
+test('2.4.6 → source-based discriminator', () => {
+  assert.equal(
+    headlineFor(flag('2.4.6', 'Label "Text 1" looks like a placeholder.', { source: 'form-label' })),
+    'Label looks like a placeholder'
+  )
+  assert.equal(
+    headlineFor(flag('2.4.6', 'Link text "Button" looks like a placeholder.', { source: 'clickable' })),
+    'Link text looks like a placeholder'
+  )
+})
+
 test('1.4.1 → use-of-color discriminator', () => {
   assert.equal(
     headlineFor(flag('1.4.1', 'No error variant designed.')),
@@ -84,6 +99,10 @@ test('3.3.3 → error-suggestion discriminator', () => {
     headlineFor(flag('3.3.3', 'Error message looks vague — add specific guidance. Found: "Invalid input".')),
     'Vague error message'
   )
+})
+
+test('text-reflow → fixed headline', () => {
+  assert.equal(headlineFor(flag('text-reflow', 'Text reflow — fixed-height text box may clip resized or spaced text.')), 'Text may not reflow')
 })
 
 test('unknown criterion → falls back to message', () => {

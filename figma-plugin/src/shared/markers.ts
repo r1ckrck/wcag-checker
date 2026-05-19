@@ -31,7 +31,11 @@ interface MarkersFileEntry extends MarkersFile {
 
 export type MarkersStore = Record<string, MarkersFileEntry>
 
-export const MARKERS_STORAGE_KEY = 'wcag-auditor.markers.v1'
+export const MARKERS_STORAGE_KEY = 'maanak.markers.v1'
+
+/** Pre-rebrand key. Read once by the main-thread migration shim so existing
+ *  per-file marker overrides survive the rename. Never written to again. */
+export const LEGACY_MARKERS_STORAGE_KEY = 'wcag-auditor.markers.v1'
 
 /** Maximum number of fileKey slots to keep before evicting oldest-by-lastTouched. */
 export const MARKERS_FILE_CAP = 50

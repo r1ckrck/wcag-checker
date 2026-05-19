@@ -21,6 +21,12 @@ export function buildManualChecks(_dto: AuditDTO): ManualCheckItem[] {
       hint: 'Verify instructions don\'t rely solely on shape, size, position, or sound.',
     },
     {
+      criterion: '2.2.1',
+      name: 'Timing Adjustable',
+      applicable: true,
+      hint: 'Time limits should be turn-off-able, adjustable, or extendable.',
+    },
+    {
       criterion: '2.2.2',
       name: 'Auto-updating content',
       applicable: true,

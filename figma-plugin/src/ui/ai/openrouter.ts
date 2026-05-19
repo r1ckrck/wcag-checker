@@ -38,7 +38,7 @@ export const openRouterProvider: VisionProvider = {
           // their dashboard. Figma Desktop's iframe origin isn't a real URL,
           // so we send a stable identifier so the user can find their usage.
           'HTTP-Referer': 'https://figma.com',
-          'X-Title': 'WCAG AA Auditor',
+          'X-Title': 'Maanak — Accessibility Checker',
         },
         body: JSON.stringify({
           model: opts.model,

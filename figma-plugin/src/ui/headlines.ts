@@ -29,10 +29,18 @@ export function headlineFor(finding: Finding): string {
       return typeof d.property === 'string'
         ? typographyTitleFor(d.property)
         : 'Tight text spacing'
+    case 'text-reflow':
+      return 'Text may not reflow'
     case '3.3.2':
       return formLabelHeadline(finding.message)
     case '2.4.4':
       return 'Vague link text'
+    case '2.4.6':
+      if (d.source === 'form-label') return 'Label looks like a placeholder'
+      if (d.source === 'text-node') return 'Text looks like a placeholder'
+      return 'Link text looks like a placeholder'
+    case '2.5.8':
+      return 'Small touch target'
     case '1.4.1':
       return useOfColorHeadline(d, finding.message)
     case '2.4.7':

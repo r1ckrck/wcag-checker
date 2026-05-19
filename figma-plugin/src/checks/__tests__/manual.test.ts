@@ -15,7 +15,7 @@ const emptyDTO = (over: Partial<AuditDTO> = {}): AuditDTO => ({
     modeName: null,
   },
   texts: [],
-  interactives: [],
+  nonTextContrast: [],
   images: [],
   formInputs: [],
   clickables: [],
@@ -38,6 +38,13 @@ test('2.2.2 Auto-updating content is always applicable', () => {
   assert.equal(item?.applicable, true)
 })
 
+test('2.2.1 Timing Adjustable is always applicable', () => {
+  const items = buildManualChecks(emptyDTO())
+  const item = items.find(m => m.criterion === '2.2.1')
+  assert.ok(item)
+  assert.equal(item?.applicable, true)
+})
+
 test('2.5.1 Gestures & motion is always applicable', () => {
   const items = buildManualChecks(emptyDTO())
   const item = items.find(m => m.criterion === '2.5.1')
@@ -47,7 +54,7 @@ test('2.5.1 Gestures & motion is always applicable', () => {
 
 test('dev-stage and dropped media criteria are not emitted', () => {
   const items = buildManualChecks(emptyDTO())
-  for (const c of ['2.1.1', '1.4.13', '1.2.1', '2.2.1', '2.3.1', '2.5.4']) {
+  for (const c of ['2.1.1', '1.4.13', '1.2.1', '2.3.1', '2.5.4']) {
     assert.equal(
       items.find(m => m.criterion === c),
       undefined,

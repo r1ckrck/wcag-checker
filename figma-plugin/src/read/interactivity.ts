@@ -1,7 +1,7 @@
 // Classify nodes as clickable / tap targets for criteria that care about
 // user-intent-to-click — SC 2.4.4 (Link Purpose), SC 2.5.8 (Touch Target), etc.
 //
-// Distinct from src/read/interactive.ts, which finds non-text contrast targets
+// Distinct from src/read/non-text-contrast.ts, which finds non-text contrast targets
 // (vectors, shapes, icons) regardless of clickability. Naming kept separate so
 // callers can pick the right signal.
 //
@@ -13,6 +13,8 @@
 //   2. Variant states — the owning ComponentSet has at least one variant
 //      whose name or property values look like an interactive state
 //      (Hover / Focus / Pressed / Active / Selected).
+//   3. Icon wrapper — small, near-square frame/instance with a visible vector
+//      descendant and an icon-ish name (Info, Help, Close, Search, etc.).
 //
 // Form inputs are excluded (they ride the form-input DTO path).
 //
@@ -27,6 +29,7 @@ import type {
 } from '../shared/dtos'
 import { toBBox } from './geometry.ts'
 import { isFormInputName } from './regex.ts'
+import { shapeMeta } from './shape.ts'
 
 // ── Name matching ───────────────────────────────────────────────────
 
@@ -71,6 +74,58 @@ const COMPOUND_EXCLUDE = [
 
 const INTERACTIVE_STATE_RE =
   /\b(hover|hovered|focus|focused|focus[-_\s]?visible|pressed|active|selected)\b/i
+
+const ICON_MIN_SIDE = 12
+const ICON_MAX_SIDE = 48
+const ICON_MIN_ASPECT = 0.75
+const ICON_MAX_ASPECT = 1.33
+
+const ICON_SIMPLE_INCLUDE = new Set([
+  'info',
+  'help',
+  'more',
+  'close',
+  'menu',
+  'search',
+  'settings',
+  'gear',
+  'chevron',
+  'caret',
+  'arrow',
+  'back',
+  'forward',
+  'download',
+  'upload',
+  'share',
+  'copy',
+  'edit',
+  'delete',
+  'plus',
+  'minus',
+  'check',
+  'x',
+  'question',
+  'warning',
+])
+
+const ICON_COMPOUND_INCLUDE = ['externallink']
+
+const ICON_SIMPLE_REJECT = new Set([
+  'button',
+  'chip',
+  'tab',
+  'link',
+  'input',
+  'select',
+  'dropdown',
+  'card',
+  'label',
+  'logo',
+  'brand',
+  'decorative',
+  'separator',
+  'divider',
+])
 
 function flatten(name: string): string {
   return name.toLowerCase().replace(/[\s\-_/.]+/g, '')
@@ -120,6 +175,31 @@ export function hasInteractiveVariants(compSet: ComponentSetNode): boolean {
   return false
 }
 
+function hasIconishName(name: string): boolean {
+  if (!name) return false
+  const flat = flatten(name)
+  if (ICON_COMPOUND_INCLUDE.some(p => flat.includes(p))) return true
+  const morphemes = splitMorphemes(name)
+  if (morphemes.some(m => ICON_SIMPLE_REJECT.has(m))) return false
+  return morphemes.some(m => ICON_SIMPLE_INCLUDE.has(m))
+}
+
+function isIconWrapperCandidate(node: SceneNode): boolean {
+  if (node.type !== 'FRAME' && node.type !== 'INSTANCE') return false
+  if (!node.absoluteBoundingBox) return false
+  const { width, height } = node.absoluteBoundingBox
+  if (width < ICON_MIN_SIDE || height < ICON_MIN_SIDE) return false
+  if (width > ICON_MAX_SIDE || height > ICON_MAX_SIDE) return false
+  if (height === 0) return false
+  const aspect = width / height
+  if (aspect < ICON_MIN_ASPECT || aspect > ICON_MAX_ASPECT) return false
+  if (!('findAllWithCriteria' in node)) return false
+  const vectors = (node as FrameNode).findAllWithCriteria({
+    types: ['VECTOR', 'BOOLEAN_OPERATION'],
+  })
+  return vectors.some(v => v.visible !== false)
+}
+
 // ── Link-text normalization ─────────────────────────────────────────
 
 /**
@@ -158,6 +238,7 @@ interface BuildContext {
    * for every instance of the same button. */
   setHasInteractiveStateCache: Map<string, boolean>
   markers: MarkersForClassifier
+  rootId: string
 }
 
 async function getOwningComponentSet(node: SceneNode): Promise<ComponentSetNode | null> {
@@ -214,6 +295,16 @@ async function classifyOne(
   if (ctx.markers.exclude.has(node.id)) return null
   if (ctx.formInputIds.has(node.id)) return null
 
+  // Include-marked ancestors absorb their whole subtree. The marked ancestor
+  // itself may classify; descendants should not be reported as separate
+  // targets, even if they also match the automatic classifier.
+  let p: BaseNode | null = node.parent
+  while (p && p.type !== 'PAGE' && p.type !== 'DOCUMENT') {
+    if (p.id === ctx.rootId) break
+    if (ctx.markers.include.has(p.id)) return null
+    p = p.parent
+  }
+
   const canonicalName = await getCanonicalName(node)
   // Belt-and-braces: even if buildFormInputElements rejected this node on
   // shape grounds, we don't want to re-announce it as a generic clickable.
@@ -225,6 +316,11 @@ async function classifyOne(
   if (isClickableName(canonicalName)) {
     signals.push('component-name')
     componentName = canonicalName
+  }
+
+  if (isIconWrapperCandidate(node) && hasIconishName(canonicalName)) {
+    signals.push('icon-wrapper')
+    if (componentName === null) componentName = canonicalName
   }
 
   const compSet = await getOwningComponentSet(node)
@@ -252,11 +348,14 @@ async function classifyOne(
 
   const textRaw = collectVisibleText(node)
   const bbox: BBox = toBBox(node.absoluteBoundingBox)
+  const shape = shapeMeta(node)
 
   return {
     kind: 'clickable',
     id: node.id,
     name: node.name,
+    nodeType: shape.nodeType,
+    cornerRadius: shape.cornerRadius,
     componentName,
     textRaw,
     textNormalized: normalizeLinkText(textRaw),
@@ -284,7 +383,8 @@ function isDescendantOfNode(node: BaseNode, ancestor: BaseNode): boolean {
  *   1. The root itself (when COMPONENT / COMPONENT_SET / INSTANCE) — covers
  *      "the audited node IS the button".
  *   2. Every INSTANCE descendant — components dropped into a layout.
- *   3. FRAME / GROUP / TEXT descendants (and the root, if FRAME/GROUP)
+ *   3. Small icon-wrapper FRAME / INSTANCE descendants.
+ *   4. FRAME / GROUP / TEXT descendants (and the root, if FRAME/GROUP)
  *      whose layer NAME matches the clickable regex. Covers the ad-hoc case
  *      where a designer types "Click here" as a TextNode named "link" without
  *      wrapping it in a component.
@@ -301,6 +401,7 @@ export async function buildClickableElements(
     formInputIds: new Set(formInputIds),
     setHasInteractiveStateCache: new Map(),
     markers,
+    rootId: root.id,
   }
 
   const candidates: SceneNode[] = []
@@ -320,6 +421,20 @@ export async function buildClickableElements(
   }
   for (const inst of instances) {
     add(inst)
+  }
+
+  if ((root.type === 'FRAME' || root.type === 'INSTANCE') && isIconWrapperCandidate(root)) {
+    add(root)
+  }
+  if ('findAllWithCriteria' in root) {
+    const iconNodes = (root as FrameNode).findAllWithCriteria({
+      types: ['FRAME', 'INSTANCE'],
+    })
+    for (const n of iconNodes) {
+      if (n.visible === false) continue
+      if (!isIconWrapperCandidate(n)) continue
+      add(n)
+    }
   }
 
   // Name-based fallback: any FRAME / GROUP / TEXT (incl. root) whose layer

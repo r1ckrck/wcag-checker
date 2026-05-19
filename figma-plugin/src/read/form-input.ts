@@ -9,6 +9,7 @@
 import type { BBox, FormInputChildText, FormInputElement } from '../shared/dtos'
 import { boxContains, toBBox } from './geometry.ts'
 import { isFormInputName } from './regex.ts'
+import { shapeMeta } from './shape.ts'
 
 async function getMainComponentName(instance: InstanceNode): Promise<string | null> {
   try {
@@ -114,6 +115,7 @@ export async function buildFormInputElement(
   if (!mainName || !isFormInputName(mainName)) return null
 
   const inputBox = toBBox(node.absoluteBoundingBox)
+  const shape = shapeMeta(node)
 
   // Bug 9 — aspect-ratio guard. Drop chips and cards before doing the more
   // expensive descendant traversal.
@@ -171,6 +173,8 @@ export async function buildFormInputElement(
     kind: 'form-input',
     id: node.id,
     name: node.name,
+    nodeType: shape.nodeType,
+    cornerRadius: shape.cornerRadius,
     mainComponentName: mainName,
     childTextNodes,
     hasExternalLabel,

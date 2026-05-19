@@ -44,6 +44,38 @@ function isWcagCode(criterion: string): boolean {
   return /^\d+\.\d+(\.\d+)?$/.test(criterion)
 }
 
+export function displayCodesForCriterion(criterion: string): string[] {
+  if (criterion === 'text-reflow') return ['1.4.4', '1.4.10', '1.4.12']
+  return isWcagCode(criterion) ? [criterion] : []
+}
+
+export interface StandardRef {
+  standard: 'WCAG' | 'GIGW 3.0' | 'IS 17802'
+  clause: string
+}
+
+/**
+ * Cross-standard mapping for a finding's criterion. GIGW 3.0 §5.2 and IS 17802
+ * (web clause) both adopt WCAG 2.1 AA *by reference*, so every WCAG SC the
+ * plugin tests is equally a GIGW and an IS obligation — the by-reference
+ * labels are accurate without per-clause research. Non-WCAG criteria
+ * (`typography`, AI/visual-review) map to nothing, exactly like
+ * `displayCodesForCriterion`.
+ */
+export function standardsForCriterion(criterion: string): StandardRef[] {
+  const wcag = displayCodesForCriterion(criterion)
+  if (wcag.length === 0) return []
+  return [
+    ...wcag.map((c): StandardRef => ({ standard: 'WCAG', clause: c })),
+    { standard: 'GIGW 3.0', clause: '§5.2' },
+    { standard: 'IS 17802', clause: 'web' },
+  ]
+}
+
+function standardRefLabel(s: StandardRef): string {
+  return `${s.standard} ${s.clause}`
+}
+
 export function renderFindingsCards(
   host: HTMLElement,
   dto: AuditDTO,
@@ -159,11 +191,34 @@ function buildFindingItem(
   titleEl.className = 'finding-item__title'
   titleEl.textContent = headlineFor(grouped.representative)
   titleRow.appendChild(titleEl)
-  if (isWcagCode(grouped.representative.criterion)) {
-    const codeEl = document.createElement('span')
-    codeEl.className = 'finding-item__code'
-    codeEl.textContent = grouped.representative.criterion
-    titleRow.appendChild(codeEl)
+  const criterion = grouped.representative.criterion
+  const displayCodes = displayCodesForCriterion(criterion)
+  if (displayCodes.length > 0) {
+    // Collapsed: the WCAG code(s) exactly as before. Expanding reveals the
+    // by-reference cross-mapping (GIGW 3.0 §5.2 · IS 17802 web). Native
+    // <details> — same zero-JS disclosure idiom as the pass/unable lists.
+    const details = document.createElement('details')
+    details.className = 'finding-item__standards'
+
+    const summary = document.createElement('summary')
+    summary.className = 'finding-item__code'
+    summary.textContent = displayCodes.join(' · ')
+    details.appendChild(summary)
+
+    // One short line per standard (stacked) rather than one wide joined
+    // line. Combined with the absolute-positioned panel CSS, this keeps the
+    // expansion to 2–3 narrow lines and stops the title row from reflowing.
+    const list = document.createElement('div')
+    list.className = 'finding-item__standards-list'
+    for (const ref of standardsForCriterion(criterion)) {
+      const line = document.createElement('span')
+      line.className = 'finding-item__standards-line'
+      line.textContent = standardRefLabel(ref)
+      list.appendChild(line)
+    }
+    details.appendChild(list)
+
+    titleRow.appendChild(details)
   }
   item.appendChild(titleRow)
 
@@ -211,12 +266,18 @@ function buildVisualForCriterion(
       return buildContrastVisual(f, dto, 'element')
     case 'typography':
       return buildSpacingVisual(f, dto)
+    case 'text-reflow':
+      return buildTextReflowVisual(f)
     case '3.3.2':
       return buildLabelVisual(grouped, dto)
     case '1.4.5':
       return buildImageOfTextRowVisual(f)
     case '2.4.4':
       return buildLinkPurposeVisual(f)
+    case '2.4.6':
+      return buildHeadingsLabelsVisual(f)
+    case '2.5.8':
+      return buildTouchTargetVisual(f)
     default:
       return null
   }
@@ -328,7 +389,7 @@ function lookupContrastColors(f: Finding, dto: AuditDTO, kind: 'text' | 'element
         bgAlpha = el.background.kind === 'solid' ? (el.background.rgba?.[3] ?? 1) : 1
       }
     } else {
-      const el = dto.interactives.find(i => i.id === f.nodeId)
+      const el = dto.nonTextContrast.find(i => i.id === f.nodeId)
       if (el) {
         const fg = el.stroke ?? el.fill
         fgHex = fgHex ?? fg?.hex ?? null
@@ -587,11 +648,47 @@ function buildLabelVisual(grouped: GroupedFinding, dto: AuditDTO): HTMLElement {
   return wrap
 }
 
-// ── 2.4.4 — quoted offending text + mild severity dot ───────────────
+// ── Text reflow — Currently / Needed two-line block ─────────────────
 
-function buildLinkPurposeVisual(f: Finding): HTMLElement {
+function buildTextReflowVisual(_f: Finding): HTMLElement {
   const wrap = document.createElement('div')
-  wrap.className = 'finding-item__visual finding-item__visual--link-purpose'
+  wrap.className = 'finding-item__visual finding-item__visual--label'
+
+  wrap.appendChild(buildLabelRow('Currently:', 'fixed-height text box', 'current'))
+  wrap.appendChild(buildLabelRow('Needed:', 'height can grow when text size or spacing changes', 'needed'))
+
+  const dotRow = document.createElement('div')
+  dotRow.className = 'finding-item__numerics finding-item__numerics--bare'
+  dotRow.appendChild(buildSeverityDot('severe'))
+  wrap.appendChild(dotRow)
+
+  return wrap
+}
+
+function buildLabelRow(label: string, value: string, kind: 'current' | 'needed'): HTMLElement {
+  const row = document.createElement('div')
+  row.className = `label-row label-row--${kind}`
+  const labelEl = document.createElement('span')
+  labelEl.className = 'label-row__label'
+  labelEl.textContent = label
+  row.appendChild(labelEl)
+  const valueEl = document.createElement('span')
+  valueEl.className = 'label-row__value'
+  valueEl.textContent = value
+  row.appendChild(valueEl)
+  return row
+}
+
+// ── 2.4.4 / 2.4.6 — quoted offending text + mild severity dot ───────
+
+/**
+ * Shared quoted-text visual used by 2.4.4 (vague link text) and 2.4.6
+ * (placeholder labels / link text). Both criteria surface the offending
+ * `details.text` as a quoted string with a mild severity dot.
+ */
+function buildQuotedTextVisual(f: Finding, modifier: string, fallback: string): HTMLElement {
+  const wrap = document.createElement('div')
+  wrap.className = `finding-item__visual finding-item__visual--${modifier}`
 
   // Wrap text + dot in a `.finding-item__numerics` row so the text expands
   // (flex: 1) and pushes the severity dot to the right — mirrors the
@@ -602,15 +699,110 @@ function buildLinkPurposeVisual(f: Finding): HTMLElement {
   const d = (f.details ?? {}) as { text?: string }
   const note = document.createElement('span')
   note.className = 'finding-item__numerics-text'
-  note.textContent = d.text ? `"${d.text}"` : 'vague phrase'
+  note.textContent = d.text ? `"${d.text}"` : fallback
   num.appendChild(note)
 
-  // 2.4.4 is workshop-flagged as warning-severity; use mild rather than the
-  // default severe so the dot reads as "should fix" not "must fix".
+  // Warning-severity (workshop intent + 2.4.6 content-quality framing); mild
+  // dot reads as "should fix", not "must fix".
   num.appendChild(buildSeverityDot('mild'))
 
   wrap.appendChild(num)
   return wrap
+}
+
+function buildLinkPurposeVisual(f: Finding): HTMLElement {
+  return buildQuotedTextVisual(f, 'link-purpose', 'vague phrase')
+}
+
+function buildHeadingsLabelsVisual(f: Finding): HTMLElement {
+  return buildQuotedTextVisual(f, 'headings-labels', 'placeholder text')
+}
+
+// ── 2.5.8 — actual target over fixed 24×24 reference ────────────────
+
+function buildTouchTargetVisual(f: Finding): HTMLElement {
+  const wrap = document.createElement('div')
+  wrap.className = 'finding-item__visual finding-item__visual--touch-target'
+
+  const d = (f.details ?? {}) as {
+    width?: unknown
+    height?: unknown
+    required?: unknown
+    nodeType?: unknown
+    cornerRadius?: unknown
+  }
+  const width = typeof d.width === 'number' && Number.isFinite(d.width) ? d.width : 0
+  const height = typeof d.height === 'number' && Number.isFinite(d.height) ? d.height : 0
+  const required = typeof d.required === 'number' && Number.isFinite(d.required) ? d.required : 24
+  const nodeType = typeof d.nodeType === 'string' ? d.nodeType : ''
+  const cornerRadius =
+    typeof d.cornerRadius === 'number' && Number.isFinite(d.cornerRadius)
+      ? d.cornerRadius
+      : null
+
+  const diagram = document.createElement('div')
+  diagram.className = 'touch-target-diagram'
+
+  const outer = document.createElement('span')
+  outer.className = 'touch-target-shape touch-target-shape--required'
+
+  const inner = document.createElement('span')
+  inner.className = 'touch-target-shape touch-target-shape--actual'
+
+  const shapeClass = touchTargetShapeClass(width, height, nodeType, cornerRadius)
+  outer.classList.add(shapeClass)
+  inner.classList.add(shapeClass)
+
+  const innerWidth = clampVisualSize(width)
+  const innerHeight = clampVisualSize(height)
+  inner.style.width = `${innerWidth}px`
+  inner.style.height = `${innerHeight}px`
+  inner.style.marginLeft = `${-innerWidth / 2}px`
+  inner.style.marginTop = `${-innerHeight / 2}px`
+
+  outer.style.width = `${required}px`
+  outer.style.height = `${required}px`
+  outer.style.marginLeft = `${-required / 2}px`
+  outer.style.marginTop = `${-required / 2}px`
+
+  diagram.appendChild(outer)
+  diagram.appendChild(inner)
+  wrap.appendChild(diagram)
+
+  const right = document.createElement('div')
+  right.className = 'touch-target-right'
+  const numerics = document.createElement('div')
+  numerics.className = 'contrast-numerics'
+  numerics.appendChild(buildNumericLine('current', `${formatPx(width)} × ${formatPx(height)} px`))
+  numerics.appendChild(buildNumericLine('needs', `≥ ${formatPx(required)} × ${formatPx(required)} px`))
+  right.appendChild(numerics)
+  right.appendChild(buildSeverityDot('severe'))
+  wrap.appendChild(right)
+
+  return wrap
+}
+
+function touchTargetShapeClass(
+  width: number,
+  height: number,
+  nodeType: string,
+  cornerRadius: number | null
+): string {
+  if (nodeType === 'ELLIPSE') return 'touch-target-shape--round'
+  const shorterSide = Math.min(width, height)
+  if (cornerRadius !== null && shorterSide > 0 && cornerRadius >= shorterSide / 2) {
+    return 'touch-target-shape--round'
+  }
+  return 'touch-target-shape--rect'
+}
+
+function clampVisualSize(n: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.min(72, Math.max(2, n))
+}
+
+function formatPx(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/u, '').replace(/\.$/u, '')
 }
 
 // ── 1.4.5 — short row note (full image scan happens in bottom AI section) ─
@@ -641,7 +833,7 @@ export function buildSectionLabel(
 ): void {
   host.appendChild(document.createTextNode(`${count} ${verb} `))
   const wrap = document.createElement('span')
-  wrap.className = 'section-label__icon'
+  wrap.className = `section-label__icon section-label__icon--${icon}`
   wrap.appendChild(document.createTextNode('('))
   wrap.appendChild(buildIcon(icon))
   wrap.appendChild(document.createTextNode(')'))
@@ -731,8 +923,11 @@ function passLabel(criterion: string): string {
     case '1.4.11': return 'Element contrast'
     case '1.4.5': return 'Image of text'
     case 'typography': return 'Typography'
+    case 'text-reflow': return 'Text reflow'
     case '3.3.2': return 'Form label'
     case '2.4.4': return 'Link purpose'
+    case '2.4.6': return 'Headings & labels'
+    case '2.5.8': return 'Target size'
     case '1.4.1': return 'Use of color'
     case '2.4.7': return 'Focus visible'
     case '3.3.1': return 'Error identification'

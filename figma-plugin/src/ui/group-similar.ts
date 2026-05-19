@@ -78,6 +78,25 @@ function identityKey(f: Finding): string | null {
       // Same flag message ("No label or placeholder" / "Placeholder only") collapses.
       return `${f.criterion}|${f.message}`
     }
+    case 'text-reflow': {
+      const textAutoResize = typeof d.textAutoResize === 'string' ? d.textAutoResize : 'unknown'
+      return `${f.criterion}|${textAutoResize}`
+    }
+    case '2.5.8': {
+      const width = numStr(d.width)
+      const height = numStr(d.height)
+      const required = numStr(d.required)
+      if (width == null || height == null || required == null) return null
+      return `${f.criterion}|${width}|${height}|${required}`
+    }
+    case '2.4.6': {
+      // Collapse by literal offending text (lowercased) so three buttons all
+      // named "Button" merge into one card with three chips, but "Button" +
+      // "Text 1" stay separate (each shows the user the exact copy to fix).
+      const text = typeof d.text === 'string' ? d.text.toLowerCase() : null
+      if (text == null) return null
+      return `${f.criterion}|${text}`
+    }
     // Variant findings (1.4.1, 2.4.7, 3.3.1, 3.3.3) live at component scope —
     // there's only one per component, no grouping happens. Returning null
     // keeps them as singletons.

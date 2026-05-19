@@ -8,6 +8,7 @@ export type GroupId =
   | 'typography'
   | 'forms-errors'
   | 'content-links'
+  | 'content-labels'
   | 'inclusive-instructions'
   | 'other'
 
@@ -16,6 +17,7 @@ export const GROUP_ORDER: readonly GroupId[] = [
   'typography',
   'forms-errors',
   'content-links',
+  'content-labels',
   'inclusive-instructions',
   'other',
 ] as const
@@ -24,7 +26,8 @@ export const GROUP_TITLES: Record<GroupId, string> = {
   'color-contrast': 'Color & contrast',
   typography: 'Typography',
   'forms-errors': 'Forms & errors',
-  'content-links': 'Content & links',
+  'content-links': 'Interactive elements',
+  'content-labels': 'Content & labels',
   'inclusive-instructions': 'Inclusive instructions',
   other: 'Other',
 }
@@ -43,6 +46,7 @@ export const CRITERION_TO_GROUP: Record<string, GroupId> = {
   // paragraph-spacing). The WCAG SC for spacing (1.4.12) is a user-override
   // resilience test handled separately by the future reflow runner.
   'typography': 'typography',
+  'text-reflow': 'typography',
 
   '2.4.7': 'forms-errors',
   '3.3.1': 'forms-errors',
@@ -50,12 +54,16 @@ export const CRITERION_TO_GROUP: Record<string, GroupId> = {
   '3.3.3': 'forms-errors',
 
   '2.4.4': 'content-links',
+  '2.5.8': 'content-links',
+
+  '2.4.6': 'content-labels',
 
   // Manual-only criteria — surfaced as bullets in the bottom note, never as
   // a group card. Their group assignment exists only so groupForCriterion
   // doesn't fall back to 'other' (and console.warn) when the renderer iterates
   // them. The renderFindingsCards filter explicitly skips these for cards.
   '1.3.3': 'inclusive-instructions',
+  '2.2.1': 'inclusive-instructions',
   '2.2.2': 'inclusive-instructions',
   '2.5.1': 'inclusive-instructions',
 }
@@ -67,13 +75,17 @@ export const CRITERION_TITLES: Record<string, string> = {
   '1.4.3': 'Contrast (Minimum)',
   '1.4.5': 'Images of Text',
   '1.4.11': 'Non-Text Contrast',
+  '2.2.1': 'Timing Adjustable',
   '2.2.2': 'Pause, Stop, Hide',
   '2.4.4': 'Link Purpose (In Context)',
+  '2.4.6': 'Headings and Labels',
   '2.4.7': 'Focus Visible',
   '2.5.1': 'Pointer Gestures',
+  '2.5.8': 'Target Size (Minimum)',
   '3.3.1': 'Error Identification',
   '3.3.2': 'Labels or Instructions',
   '3.3.3': 'Error Suggestion',
+  'text-reflow': 'Text Reflow',
   // 'typography' is intentionally absent — it's not a WCAG SC and shouldn't
   // surface a standard reference in the UI.
 }

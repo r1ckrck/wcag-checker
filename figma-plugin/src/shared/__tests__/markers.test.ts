@@ -9,9 +9,23 @@ import {
   setMarkerState,
   EMPTY_MARKERS_FILE,
   MARKERS_FILE_CAP,
+  MARKERS_STORAGE_KEY,
+  LEGACY_MARKERS_STORAGE_KEY,
   type MarkersFile,
   type MarkersStore,
 } from '../markers.ts'
+
+// ── Storage-key rebrand contract ────────────────────────────────────
+// The main-thread migration shim relies on these exact strings: the new
+// key is what we read/write going forward; the legacy key is read once to
+// carry pre-rebrand marker overrides across the "Maanak" rename.
+test('markers storage key is the rebranded maanak key', () => {
+  assert.equal(MARKERS_STORAGE_KEY, 'maanak.markers.v1')
+})
+
+test('legacy markers storage key is the pre-rebrand value', () => {
+  assert.equal(LEGACY_MARKERS_STORAGE_KEY, 'wcag-auditor.markers.v1')
+})
 
 // ── parseMarkersStore ───────────────────────────────────────────────
 

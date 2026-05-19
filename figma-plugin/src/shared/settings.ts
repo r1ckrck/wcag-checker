@@ -19,7 +19,12 @@ export interface AiSettings {
 
 /** Versioned key — bump if the shape changes so old records don't crash
  *  the loader. The loader treats unknown shapes as "no settings yet". */
-export const SETTINGS_STORAGE_KEY = 'wcag-aa-auditor.settings.v1'
+export const SETTINGS_STORAGE_KEY = 'maanak.settings.v1'
+
+/** Pre-rebrand key. Read once by the main-thread migration shim so users
+ *  who saved a key under the old "WCAG AA Auditor" name keep it. Never
+ *  written to again. */
+export const LEGACY_SETTINGS_STORAGE_KEY = 'wcag-aa-auditor.settings.v1'
 
 export const DEFAULT_SETTINGS: AiSettings = {
   provider: 'openrouter',

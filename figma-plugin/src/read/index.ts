@@ -4,7 +4,7 @@
 // module that DOES record failures — wrapped in `safe()` / `safeArray()`,
 // any per-element extraction failure becomes an entry in `dto.warnings[]`,
 // flowing through to the report's Warnings section. Per-element silent
-// fallbacks happen one level down (text.ts, interactive.ts, etc.).
+// fallbacks happen one level down (text.ts, non-text-contrast.ts, etc.).
 
 import type {
   AuditDTO,
@@ -13,7 +13,7 @@ import type {
 } from '../shared/dtos'
 import { collect } from './traverse.ts'
 import { buildTextElement } from './text.ts'
-import { buildInteractiveElements } from './interactive.ts'
+import { buildNonTextContrastElements } from './non-text-contrast.ts'
 import { buildImageElements } from './image.ts'
 import { buildFormInputElements } from './form-input.ts'
 import {
@@ -65,10 +65,10 @@ export async function buildAuditDTO(
   // Bug 6 — pass the audited root as a fallback surface so the background
   // sampler can resolve carousel cards / off-canvas content that doesn't
   // share the audit's bbox.
-  const [texts, interactives, formInputs, variants] = await Promise.all([
+  const [texts, nonTextContrast, formInputs, variants] = await Promise.all([
     Promise.all(collected.texts.map(t => safe(() => buildTextElement(t, root), warnings))),
     safeArray(
-      () => buildInteractiveElements(collected.vectors, collected.shapes, collected.instances, root),
+      () => buildNonTextContrastElements(collected.vectors, collected.shapes, collected.instances, root),
       warnings
     ),
     safeArray(() => buildFormInputElements(collected.instances), warnings),
@@ -91,7 +91,7 @@ export async function buildAuditDTO(
   return {
     component: buildMeta(root),
     texts: texts.filter((x): x is NonNullable<typeof x> => x !== null),
-    interactives,
+    nonTextContrast,
     images,
     formInputs,
     clickables,

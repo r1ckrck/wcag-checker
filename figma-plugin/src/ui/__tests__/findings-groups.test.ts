@@ -16,10 +16,14 @@ const ALL_EMITTED_CRITERIA = [
   '1.4.3',
   '1.4.5',
   '1.4.11',
+  'text-reflow',
+  '2.2.1',
   '2.2.2',
   '2.4.4',
+  '2.4.6',
   '2.4.7',
   '2.5.1',
+  '2.5.8',
   '3.3.1',
   '3.3.2',
   '3.3.3',
@@ -80,9 +84,9 @@ test('unknown criterion falls back to other', () => {
   assert.equal(g, 'other')
 })
 
-test('GROUP_ORDER includes all 6 group ids exactly once', () => {
-  assert.equal(GROUP_ORDER.length, 6)
-  assert.equal(new Set(GROUP_ORDER).size, 6)
+test('GROUP_ORDER includes all 7 group ids exactly once', () => {
+  assert.equal(GROUP_ORDER.length, 7)
+  assert.equal(new Set(GROUP_ORDER).size, 7)
   for (const id of GROUP_ORDER) {
     assert.ok(GROUP_TITLES[id], `${id} missing title`)
   }
@@ -102,19 +106,36 @@ test('2.4.7 is now in forms-errors group', () => {
   assert.equal(groupForCriterion('2.4.7'), 'forms-errors')
 })
 
+test('2.4.4 and 2.5.8 are in interactive elements group', () => {
+  assert.equal(groupForCriterion('2.4.4'), 'content-links')
+  assert.equal(groupForCriterion('2.5.8'), 'content-links')
+  assert.equal(GROUP_TITLES['content-links'], 'Interactive elements')
+})
+
+test('2.4.6 is in content & labels group', () => {
+  assert.equal(groupForCriterion('2.4.6'), 'content-labels')
+  assert.equal(GROUP_TITLES['content-labels'], 'Content & labels')
+  assert.equal(CRITERION_TITLES['2.4.6'], 'Headings and Labels')
+})
+
+test('text-reflow is in typography group', () => {
+  assert.equal(groupForCriterion('text-reflow'), 'typography')
+  assert.equal(CRITERION_TITLES['text-reflow'], 'Text Reflow')
+})
+
 test('1.4.13 and 2.1.1 are no longer mapped (fall back to other)', () => {
   assert.equal(groupForCriterion('1.4.13'), 'other')
   assert.equal(groupForCriterion('2.1.1'), 'other')
 })
 
 test('media criteria are no longer mapped (now bottom-note manual items)', () => {
-  // 1.2.1, 2.2.1, 2.3.1, 2.5.4 dropped entirely; 2.2.2 and 2.5.1 are
+  // 1.2.1, 2.3.1, 2.5.4 dropped entirely; 2.2.1, 2.2.2 and 2.5.1 are
   // surfaced as manual items in the bottom note (mapped to inclusive-instructions
   // so they have a home in groupForCriterion, but the group card is suppressed).
   assert.equal(groupForCriterion('1.2.1'), 'other')
-  assert.equal(groupForCriterion('2.2.1'), 'other')
   assert.equal(groupForCriterion('2.3.1'), 'other')
   assert.equal(groupForCriterion('2.5.4'), 'other')
+  assert.equal(groupForCriterion('2.2.1'), 'inclusive-instructions')
   assert.equal(groupForCriterion('2.2.2'), 'inclusive-instructions')
   assert.equal(groupForCriterion('2.5.1'), 'inclusive-instructions')
 })

@@ -1,11 +1,13 @@
-// Build an InteractiveElement DTO from a vector / boolean-op / icon-instance.
+// Build a NonTextContrastElement DTO from a vector / boolean-op / icon-instance.
+// These are the drawn, non-text targets SC 1.4.11 cares about — NOT clickables
+// (those live in interactivity.ts as ClickableElement).
 //
 // Error-handling policy: silent fallback. Per-element extraction returns
 // `null` on any failure (invisible node, missing bbox, swap target gone) and
 // the orchestrator omits the element from the DTO. Per-element failures never
 // surface as warnings — one broken icon shouldn't sink the audit.
 
-import type { InteractiveElement, ResolvedFill } from '../shared/dtos'
+import type { NonTextContrastElement, ResolvedFill } from '../shared/dtos'
 import { resolveNodeFills, resolveFills } from './color.ts'
 import { sampleBackground } from './background.ts'
 import { isFormInputName } from './regex.ts'
@@ -90,7 +92,7 @@ async function resolveIconColors(
 async function buildVectorElement(
   node: VectorNode | BooleanOperationNode,
   rootFallback?: SceneNode
-): Promise<InteractiveElement | null> {
+): Promise<NonTextContrastElement | null> {
   if (node.visible === false) return null
   if (!node.absoluteBoundingBox) return null
   // BOOLEAN_OPERATIONs sometimes carry no fill themselves — the color is on the
@@ -99,7 +101,7 @@ async function buildVectorElement(
   const { fill, stroke, weight } = await resolveIconColors(node)
   const background = await sampleBackground(node, { rootFallback })
   return {
-    kind: 'interactive',
+    kind: 'non-text-contrast',
     id: node.id,
     name: node.name,
     nodeType: node.type,
@@ -113,7 +115,7 @@ async function buildVectorElement(
 }
 
 /**
- * Build an InteractiveElement from a drawn primitive shape (RECTANGLE,
+ * Build a NonTextContrastElement from a drawn primitive shape (RECTANGLE,
  * ELLIPSE, POLYGON, STAR, LINE). Resolves the shape's own fill + stroke
  * directly — no descendant walk needed since shapes are leaf-level. Skips
  * shapes with neither a usable fill nor a usable stroke (purely transparent
@@ -122,7 +124,7 @@ async function buildVectorElement(
 async function buildShapeElement(
   node: ShapeNode,
   rootFallback?: SceneNode
-): Promise<InteractiveElement | null> {
+): Promise<NonTextContrastElement | null> {
   if (node.visible === false) return null
   if (!node.absoluteBoundingBox) return null
 
@@ -135,7 +137,7 @@ async function buildShapeElement(
 
   const background = await sampleBackground(node, { rootFallback })
   return {
-    kind: 'interactive',
+    kind: 'non-text-contrast',
     id: node.id,
     name: node.name,
     nodeType: node.type,
@@ -155,7 +157,7 @@ function instanceHasTextDescendants(node: InstanceNode): boolean {
 async function buildIconInstance(
   node: InstanceNode,
   rootFallback?: SceneNode
-): Promise<InteractiveElement | null> {
+): Promise<NonTextContrastElement | null> {
   if (node.visible === false) return null
   if (!node.absoluteBoundingBox) return null
   // Only treat as icon-only interactive when the instance has no text. Form
@@ -173,7 +175,7 @@ async function buildIconInstance(
   const { fill, stroke, weight } = await resolveIconColors(node)
   const background = await sampleBackground(node, { rootFallback })
   return {
-    kind: 'interactive',
+    kind: 'non-text-contrast',
     id: node.id,
     name: node.name,
     nodeType: 'INSTANCE',
@@ -187,14 +189,14 @@ async function buildIconInstance(
 }
 
 /**
- * Build interactive elements from a list of candidate vectors, shapes, and
- * instances.
+ * Build non-text-contrast elements from a list of candidate vectors, shapes,
+ * and instances.
  *
  * Dedup rules:
  *  - A VECTOR whose nearest BOOLEAN_OPERATION ancestor is in the vector list
  *    is dropped (existing rule — composite icons report once).
  *  - A VECTOR / BOOLEAN_OPERATION / SHAPE whose nearest INSTANCE ancestor was
- *    already classified as an icon-only InteractiveElement is dropped — icon
+ *    already classified as an icon-only NonTextContrastElement is dropped — icon
  *    components report once instead of once per inner path.
  *  - A SHAPE inside a vector or boolean-op subtree is dropped — vector glyphs
  *    sometimes carry inner rectangles that aren't really separate elements.
@@ -204,17 +206,17 @@ async function buildIconInstance(
  * Order: process instances first so we know which become icon-only, then use
  * that set to filter the vectors and shapes before processing them.
  */
-export async function buildInteractiveElements(
+export async function buildNonTextContrastElements(
   vectors: Array<VectorNode | BooleanOperationNode>,
   shapes: ShapeNode[],
   instances: InstanceNode[],
   rootFallback?: SceneNode
-): Promise<InteractiveElement[]> {
+): Promise<NonTextContrastElement[]> {
   const instanceResults = await Promise.all(
     instances.map(n => buildIconInstance(n, rootFallback))
   )
   const iconInstances = instanceResults.filter(
-    (e): e is InteractiveElement => e !== null
+    (e): e is NonTextContrastElement => e !== null
   )
   const iconInstanceIds = new Set(iconInstances.map(e => e.id))
 
@@ -251,8 +253,8 @@ export async function buildInteractiveElements(
     Promise.all(dedupedShapes.map(s => buildShapeElement(s, rootFallback))),
   ])
 
-  const fromVectorsFiltered = fromVectors.filter((e): e is InteractiveElement => e !== null)
-  const fromShapesFiltered = fromShapes.filter((e): e is InteractiveElement => e !== null)
+  const fromVectorsFiltered = fromVectors.filter((e): e is NonTextContrastElement => e !== null)
+  const fromShapesFiltered = fromShapes.filter((e): e is NonTextContrastElement => e !== null)
 
   return [...iconInstances, ...fromVectorsFiltered, ...fromShapesFiltered]
 }

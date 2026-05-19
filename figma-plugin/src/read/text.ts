@@ -99,6 +99,7 @@ export async function buildTextElement(
     id: node.id,
     name: node.name,
     characters: node.characters.slice(0, 60),
+    textAutoResize: node.textAutoResize,
     isSingleLine: !node.characters.includes('\n'),
     isSingleVisualLine: detectSingleVisualLine(bbox.height, segments),
     paragraphSpacingPx,

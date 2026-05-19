@@ -23,11 +23,13 @@ import {
   DEFAULT_SETTINGS,
   parseSettings,
   SETTINGS_STORAGE_KEY,
+  LEGACY_SETTINGS_STORAGE_KEY,
   type AiSettings,
 } from '../shared/settings.ts'
 import {
   EMPTY_MARKERS_FILE,
   MARKERS_STORAGE_KEY,
+  LEGACY_MARKERS_STORAGE_KEY,
   getFileMarkers,
   parseMarkersStore,
   pruneFileMarkers,
@@ -63,7 +65,7 @@ figma.showUI(__html__, {
   width: PLUGIN_WIDTH,
   height: MIN_HEIGHT,
   themeColors: false,
-  title: 'WCAG AA Auditor',
+  title: 'Maanak — Accessibility Checker',
 })
 
 function isSupported(type: NodeType): type is SupportedNodeType {
@@ -512,8 +514,38 @@ let currentFileMarkers: MarkersFile = EMPTY_MARKERS_FILE
 // alphanumeric characters." Hyphens (and other non-alphanumerics) cause the
 // call to throw, which previously hit our silent catch and falsely surfaced
 // the "Dev Mode is read-only" message. Keep this strictly alphanumeric.
-const FILE_ID_NAMESPACE = 'wcagauditor'
+const FILE_ID_NAMESPACE = 'maanak'
+// Pre-rebrand namespace. Read once for migration so a file's existing
+// scope-id (and therefore its marker overrides) survives the rename.
+const LEGACY_FILE_ID_NAMESPACE = 'wcagauditor'
 const FILE_ID_KEY = 'fileidv1'
+
+/**
+ * Read a clientStorage value, migrating a pre-rebrand key on first run.
+ * New-key-wins (idempotent). When only the legacy key exists, its value is
+ * copied to the new key and the legacy key deleted — a one-time, transparent
+ * move so users keep their saved API key / markers after the rename. If the
+ * copy write fails (quota, permissions) the legacy value is still returned so
+ * no data is lost this session; the copy retries next run.
+ */
+async function loadWithMigration(newKey: string, legacyKey: string): Promise<unknown> {
+  const current = await figma.clientStorage.getAsync(newKey)
+  if (current !== undefined) return current
+  let legacy: unknown
+  try {
+    legacy = await figma.clientStorage.getAsync(legacyKey)
+  } catch {
+    return undefined
+  }
+  if (legacy === undefined) return undefined
+  try {
+    await figma.clientStorage.setAsync(newKey, legacy)
+    await figma.clientStorage.deleteAsync(legacyKey)
+  } catch {
+    // Keep the legacy value for this session; retry the copy next run.
+  }
+  return legacy
+}
 
 function generateFileId(): string {
   // Not cryptographically meaningful — just unique enough to label one file
@@ -542,6 +574,25 @@ function getFileScopeId(): string | null {
     existing = ''
   }
   if (existing) return existing
+
+  // Migration: a pre-rebrand file id lives under the old namespace. Carry it
+  // forward so marker overrides keyed by this id still resolve. Best-effort
+  // re-stash under the new namespace (fails silently in dev read-only mode —
+  // we still return the legacy id so this session works).
+  let legacyId = ''
+  try {
+    legacyId = figma.root.getSharedPluginData(LEGACY_FILE_ID_NAMESPACE, FILE_ID_KEY)
+  } catch {
+    legacyId = ''
+  }
+  if (legacyId) {
+    try {
+      figma.root.setSharedPluginData(FILE_ID_NAMESPACE, FILE_ID_KEY, legacyId)
+    } catch {
+      // Read-only context — keep using the legacy id this session.
+    }
+    return legacyId
+  }
 
   // Path 3 — create + persist a fresh UUID. Writes require write access to
   // the document; dev mode is read-only and will throw. Anything else (a
@@ -595,7 +646,7 @@ async function loadAndPruneMarkers(): Promise<{
   if (!fileKey) {
     return { fileKey: null, markers: EMPTY_MARKERS_FILE }
   }
-  const raw = await figma.clientStorage.getAsync(MARKERS_STORAGE_KEY)
+  const raw = await loadWithMigration(MARKERS_STORAGE_KEY, LEGACY_MARKERS_STORAGE_KEY)
   const store = parseMarkersStore(raw)
   const file = getFileMarkers(store, fileKey)
 
@@ -726,7 +777,7 @@ figma.ui.onmessage = async (msg: UIToMain) => {
       // failure). DEFAULT_SETTINGS surface on first launch / parse miss.
       case 'settings-load': {
         try {
-          const raw = await figma.clientStorage.getAsync(SETTINGS_STORAGE_KEY)
+          const raw = await loadWithMigration(SETTINGS_STORAGE_KEY, LEGACY_SETTINGS_STORAGE_KEY)
           send({ kind: 'settings-loaded', settings: parseSettings(raw) })
         } catch (e) {
           // clientStorage failure is exceptional but possible (quota,
@@ -777,7 +828,7 @@ figma.ui.onmessage = async (msg: UIToMain) => {
           return
         }
         try {
-          const raw = await figma.clientStorage.getAsync(MARKERS_STORAGE_KEY)
+          const raw = await loadWithMigration(MARKERS_STORAGE_KEY, LEGACY_MARKERS_STORAGE_KEY)
           const store = parseMarkersStore(raw)
           const nextStore = setFileMarkers(store, fileKey, msg.markers)
           await figma.clientStorage.setAsync(MARKERS_STORAGE_KEY, nextStore)

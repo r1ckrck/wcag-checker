@@ -1,4 +1,4 @@
-# Figma Plugin API — Comprehensive Reference for the WCAG Checker Port
+# Figma Plugin API — Comprehensive Reference for the Maanak — Accessibility Checker Port
 
 > **Scope.** This document is a planning-grade reference for porting our Claude-Code WCAG skill (currently MCP-driven) to a native Figma plugin. It catalogs the surface area of the Figma Plugin API, with emphasis on the parts we will actually touch: node traversal, fills/styles/variables (for contrast), text properties (for typography rules), components/variants, exports (for screenshots), the UI iframe (for our checker chrome), network access (for any backend), and storage. Where the API has gotchas we will hit, they are called out inline.
 
@@ -74,7 +74,7 @@ Example minimal manifest matching our likely needs:
 
 ```json
 {
-  "name": "WCAG Checker",
+  "name": "Maanak — Accessibility Checker",
   "id": "1234567890",
   "api": "1.0.0",
   "main": "dist/main.js",

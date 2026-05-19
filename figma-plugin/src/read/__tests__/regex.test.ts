@@ -35,6 +35,32 @@ test('isFormInputName — input/<text-entry-suffix> matches', () => {
   assert.equal(isFormInputName('input/name'), true)
 })
 
+test('isFormInputName — BFSI / India-domain input/<suffix> matches', () => {
+  assert.equal(isFormInputName('input/pan'), true)
+  assert.equal(isFormInputName('input/aadhaar'), true)
+  assert.equal(isFormInputName('input/aadhar'), true)
+  assert.equal(isFormInputName('input/address'), true)
+  assert.equal(isFormInputName('input/pincode'), true)
+  assert.equal(isFormInputName('input/pin'), true)
+  assert.equal(isFormInputName('input/income'), true)
+  assert.equal(isFormInputName('input/salary'), true)
+  assert.equal(isFormInputName('input/ifsc'), true)
+  assert.equal(isFormInputName('input/gstin'), true)
+  assert.equal(isFormInputName('input/gst'), true)
+  assert.equal(isFormInputName('input/accountnumber'), true)
+  assert.equal(isFormInputName('input/accno'), true)
+  assert.equal(isFormInputName('input/account'), true)
+  assert.equal(isFormInputName('input/dob'), true)
+  assert.equal(isFormInputName('input/otp'), true)
+})
+
+test('isFormInputName — superset names of new suffixes do NOT match (\\b guard)', () => {
+  assert.equal(isFormInputName('input/pinterest'), false)
+  assert.equal(isFormInputName('input/accountant'), false)
+  assert.equal(isFormInputName('input/panic'), false)
+  assert.equal(isFormInputName('input/addressbook'), false)
+})
+
 test('isFormInputName — case insensitive', () => {
   assert.equal(isFormInputName('TEXTFIELD'), true)
   assert.equal(isFormInputName('textfield'), true)

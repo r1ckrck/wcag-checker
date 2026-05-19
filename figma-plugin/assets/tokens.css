@@ -22,6 +22,14 @@
                                Distinct from accent purple, signals "set" without reading
                                as destructive red. Contrast-checked ≥ 4.5:1 on --bg. */
 
+  /* Semantic status colors — applied to the check / warning / prohibit
+     count-chip icons and to the matching section-label icons. Earthy mid-tones
+     that match the warm palette; deliberately distinct from accent (severity)
+     and from --status-exclude (marker state). */
+  --status-pass: #5F7A47;     /* muted sage — passed */
+  --status-flag: #A14738;     /* terracotta — flagged */
+  --status-unable: #8B7530;   /* antique gold — unable to test */
+
   /* ── Icon coloring ────────────────────────────────────────────────── */
 
   --icon-primary: var(--fg);
@@ -66,6 +74,12 @@
   --status-exclude: #DDA76A;
                             /* lifted amber for dark mode — same hue, brighter so it
                                carries the same visual weight as accent on dark bg. */
+
+  /* Lifted variants of the semantic status trio. Same hues, higher luminance
+     so they hold up against #111 with parity to the light-mode picks. */
+  --status-pass: #A2BC79;
+  --status-flag: #D38478;
+  --status-unable: #D0BA66;
 
   --icon-primary: var(--fg);
   --icon-secondary: var(--mute);

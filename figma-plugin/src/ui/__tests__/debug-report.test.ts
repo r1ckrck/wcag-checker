@@ -18,7 +18,7 @@ const emptyDTO = (over: Partial<AuditDTO> = {}): AuditDTO => ({
     modeName: null,
   },
   texts: [],
-  interactives: [],
+  nonTextContrast: [],
   images: [],
   formInputs: [],
   clickables: [],
@@ -57,6 +57,7 @@ const textEl = (over: Partial<TextElement>): TextElement => ({
   id: over.id ?? 't:1',
   name: over.name ?? 'Body',
   characters: over.characters ?? 'Hello',
+  textAutoResize: over.textAutoResize ?? 'HEIGHT',
   isSingleLine: over.isSingleLine ?? true,
   isSingleVisualLine: over.isSingleVisualLine ?? true,
   paragraphSpacingPx: over.paragraphSpacingPx ?? null,
@@ -83,13 +84,13 @@ const textEl = (over: Partial<TextElement>): TextElement => ({
 
 test('produces valid markdown with all required headings on empty input', () => {
   const md = formatDebugReport(emptyDTO(), emptyFindings(), META)
-  assert.match(md, /^# WCAG Audit Debug — 2026-05-08T12:00:00Z/)
+  assert.match(md, /^# Maanak — Accessibility Checker · debug — 2026-05-08T12:00:00Z/)
   assert.match(md, /## Summary/)
   assert.match(md, /## Flags \(0\)/)
   assert.match(md, /## Unable to test \(0\)/)
   assert.match(md, /## Passed \(0\)/)
   assert.match(md, /## Read trace — Texts \(0\)/)
-  assert.match(md, /## Read trace — Interactives \(0\)/)
+  assert.match(md, /## Read trace — Non-text contrast \(0\)/)
   assert.match(md, /## Read trace — Images \(0\)/)
   assert.match(md, /## Read trace — Form inputs \(0\)/)
   assert.match(md, /## Read trace — Variants/)
@@ -216,7 +217,7 @@ test('handles weird unicode and special characters in node names without breakin
   assert.match(md, /### "Name with ˋbacktickˋ?s?ˋ and ǀ pipes"/)
   // Raw JSON section preserves the original characters — that's expected;
   // the four-backtick fence absorbs them safely.
-  assert.match(md, /^# WCAG Audit Debug/)
+  assert.match(md, /^# Maanak — Accessibility Checker · debug/)
 })
 
 test('marks variants section explicitly when no variants present', () => {
