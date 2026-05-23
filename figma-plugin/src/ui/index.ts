@@ -18,7 +18,8 @@ import { headlineFor } from './headlines.ts'
 // figma.clientStorage. No localhost server, no shared key.
 import { PROVIDERS, PROVIDER_LABELS } from './ai/registry.ts'
 import { ProviderError, type ProviderId } from './ai/provider.ts'
-import { runImageOfTextCheck, runVisualReview } from './ai/run.ts'
+import { runAltText, runImageOfTextCheck, runVisualReview } from './ai/run.ts'
+import type { SpecModel } from '../checks/metadata-model.ts'
 
 // ── Per-user AI settings (figma.clientStorage round-trip) ──────────
 import { attachSettingsMessageHandler, loadSettings } from './settings/store.ts'
@@ -65,6 +66,7 @@ const heroTitle = $<HTMLHeadingElement>('hero-title')
 const heroMeta = $<HTMLParagraphElement>('hero-meta')
 const runBtn = $<HTMLButtonElement>('run-btn')
 const runBtnLabel = $<HTMLSpanElement>('run-btn-label')
+const genMetaBtn = $<HTMLButtonElement>('gen-meta-btn')
 const resultsBody = $<HTMLDivElement>('results-body')
 const copyDebugBtn = $<HTMLButtonElement>('copy-debug-btn')
 const toastEl = $<HTMLDivElement>('toast')
@@ -140,6 +142,7 @@ renderAiIndicator(getSettings())
 
 let currentSelection: SelectionInfo = { kind: 'none' }
 let runState: 'idle' | 'running' = 'idle'
+let metaInFlight = false
 
 // What the current Results pane is *about*. Lives independently of
 // `currentSelection` so the audit results stay sticky when the user clicks
@@ -1252,7 +1255,19 @@ function clearResults(): void {
  *
  * The button width stays stable across selections so the layout doesn't reflow.
  */
+function syncGenMetaBtn(): void {
+  const label = $<HTMLSpanElement>('gen-meta-btn-label')
+  if (metaInFlight) {
+    label.textContent = 'Generating…'
+    genMetaBtn.disabled = true
+    return
+  }
+  label.textContent = 'Generate metadata'
+  genMetaBtn.disabled = currentSelection.kind !== 'ok' || runState === 'running'
+}
+
 function updateRunCtaForState(): void {
+  syncGenMetaBtn()
   if (runState === 'running') {
     runBtnLabel.textContent = 'Running…'
     runBtn.disabled = true
@@ -1403,6 +1418,81 @@ runBtn.addEventListener('click', () => {
   send({ kind: 'run-audit' })
 })
 
+genMetaBtn.addEventListener('click', () => {
+  if (currentSelection.kind !== 'ok' || metaInFlight || runState === 'running') return
+  metaInFlight = true
+  syncGenMetaBtn()
+  send({ kind: 'generate-metadata' })
+})
+
+// Fill the model's AI-image alt-text fields in the iframe (only place with
+// fetch + the user's key), then hand the completed model back to main to
+// draw. AI off / no candidate / per-image failure → the field stays an empty
+// slot the designer fills. Never throws to the caller — the frame always
+// gets drawn from whatever the model ended up as.
+async function finalizeMetadata(
+  model: SpecModel,
+  imageCandidates: ImageCandidate[]
+): Promise<void> {
+  try {
+    const s = getSettings()
+    const aiOn = !!s.apiKey && !!s.aiEnabled
+
+    type SpecField = SpecModel['elements'][number]['fields'][number]
+    const tasks: Array<{ field: SpecField; cand: ImageCandidate; placeholder: string }> = []
+    for (const el of model.elements) {
+      for (const f of el.fields) {
+        const v = f.value
+        if (v.kind !== 'ai-image') continue
+        const cand = imageCandidates.find(c => c.id === v.imageId)
+        if (aiOn && cand) {
+          tasks.push({ field: f, cand, placeholder: v.placeholder })
+        } else {
+          f.value = { kind: 'slot', placeholder: v.placeholder }
+        }
+      }
+    }
+
+    if (tasks.length > 0) {
+      const provider = PROVIDERS[s.provider]
+      const modelId = s.model || provider.defaultModel
+      const settled = await Promise.allSettled(
+        tasks.map(async t => {
+          const out = await shrinkImageForServer(t.cand.bytes, t.cand.mimeType, MAX_IMAGE_SIDE_PX)
+          return runAltText({
+            provider,
+            apiKey: s.apiKey,
+            model: modelId,
+            layerName: t.cand.name,
+            base64: out.base64,
+            mimeType: out.mimeType,
+            timeoutMs: AI_FETCH_TIMEOUT_MS,
+          })
+        })
+      )
+      settled.forEach((r, i) => {
+        const t = tasks[i]
+        if (r.status === 'fulfilled' && r.value.text.trim() !== '') {
+          t.field.value = { kind: 'value', text: r.value.text.trim() }
+        } else {
+          t.field.value = { kind: 'slot', placeholder: t.placeholder }
+        }
+      })
+    }
+  } catch {
+    // Unexpected failure — leave any remaining ai-image fields as slots so the
+    // frame still draws.
+    for (const el of model.elements) {
+      for (const f of el.fields) {
+        if (f.value.kind === 'ai-image') {
+          f.value = { kind: 'slot', placeholder: f.value.placeholder }
+        }
+      }
+    }
+  }
+  send({ kind: 'metadata-finalize', model })
+}
+
 // Auto-resize the plugin window to match content. ResizeObserver fires whenever
 // the body's measured height changes (selection state copy length, results
 // rendered, etc.). Throttled by rAF + a small debounce to avoid jitter.
@@ -1443,6 +1533,19 @@ window.addEventListener('message', (event: MessageEvent) => {
       return
     case 'variant-error':
       renderVariantError(msg.error)
+      return
+    case 'metadata-model':
+      void finalizeMetadata(msg.model, msg.imageCandidates)
+      return
+    case 'metadata-generated':
+      metaInFlight = false
+      syncGenMetaBtn()
+      showToast('Metadata generated', 'ok')
+      return
+    case 'metadata-error':
+      metaInFlight = false
+      syncGenMetaBtn()
+      showToast(msg.error, 'error')
       return
   }
 })

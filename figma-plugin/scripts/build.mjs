@@ -23,6 +23,7 @@ const FONTS_DIR = path.join(ASSETS, 'fonts')
 const PROMPTS_DIR = path.join(ASSETS, 'prompts')
 const VISUAL_REVIEW_PROMPT_FILE = path.join(PROMPTS_DIR, 'visual-review.txt')
 const IMAGE_OF_TEXT_PROMPT_FILE = path.join(PROMPTS_DIR, 'image-of-text.txt')
+const ALT_TEXT_PROMPT_FILE = path.join(PROMPTS_DIR, 'alt-text.txt')
 const PHOSPHOR_DIR = path.join(ASSETS, 'icons', 'phosphor')
 
 // Fonts to inline as base64 woff2 inside @font-face rules. The plugin iframe
@@ -242,13 +243,15 @@ async function buildUIScript() {
 // prompt body is treated as a literal, not a regex substitution token —
 // same trick the HTML-assembly step uses for fonts / sprite / monogram.
 async function inlinePrompts(js) {
-  const [visualReview, imageOfText] = await Promise.all([
+  const [visualReview, imageOfText, altText] = await Promise.all([
     readFile(VISUAL_REVIEW_PROMPT_FILE, 'utf8'),
     readFile(IMAGE_OF_TEXT_PROMPT_FILE, 'utf8'),
+    readFile(ALT_TEXT_PROMPT_FILE, 'utf8'),
   ])
   const markers = [
     { marker: '/* INLINE_VISUAL_REVIEW_PROMPT */', value: visualReview },
     { marker: '/* INLINE_IMAGE_OF_TEXT_PROMPT */', value: imageOfText },
+    { marker: '/* INLINE_ALT_TEXT_PROMPT */', value: altText },
   ]
   let out = js
   for (const { marker, value } of markers) {

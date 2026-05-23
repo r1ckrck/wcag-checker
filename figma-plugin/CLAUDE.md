@@ -60,6 +60,7 @@ figma-plugin/
 │   │   └── settings.ts        # AiSettings, DEFAULT_SETTINGS, parseSettings
 │   ├── main/
 │   │   ├── index.ts           # message handler, exports, selection tracking, clientStorage
+│   │   ├── spec-frame.ts      # draws the metadata Accessibility Spec frame (figma.* write)
 │   │   └── try-export-all.ts  # bounded parallel SceneNode export
 │   ├── read/                  # DTO build pipeline (figma node tree → AuditDTO)
 │   │   ├── index.ts           # buildAuditDTO orchestrator
@@ -82,6 +83,7 @@ figma-plugin/
 │   │   ├── typography.ts      # typography readability math (non-SC criterion id: typography)
 │   │   ├── findings.ts        # Finding / FindingsReport types + aggregate()
 │   │   ├── manual.ts          # always-applicable manual checks (1.3.3, 2.2.1, 2.2.2, 2.5.1)
+│   │   ├── metadata-model.ts  # pure buildSpecModel(dto) — metadata generator's SpecModel
 │   │   ├── orchestrator.ts    # runChecks(dto) wires runners + manual
 │   │   ├── variant-diff.ts    # pure tree+property diff helpers
 │   │   └── runners/
@@ -120,8 +122,9 @@ figma-plugin/
 │           ├── store.ts       # in-iframe marker cache + load/save/watch bridge
 │           └── page.ts        # full-panel Mark UI (Include/Exclude/Reset)
 └── docs/
-    ├── figma-plugin-api-research.md
-    └── mcp-to-plugin-mapping.md
+    ├── figma-plugin-api-research.md   # Figma Plugin API surface reference
+    ├── mcp-to-plugin-mapping.md       # skill 5-phase workflow → plugin architecture delta
+    └── metadata-generator.md          # spec for the Generate-metadata feature
 ```
 
 ---
@@ -151,7 +154,7 @@ Variant audit lives behind a separate "Run variant audit" button — its finding
 | 1.4.3 | Contrast (Minimum) | luminance ratio per text segment vs sampled background | Color & contrast group |
 | 1.4.5 | Images of Text | name heuristic + AI image-of-text classifier | Typography group + Image-of-text AI section |
 | 1.4.11 | Non-Text Contrast | stroke / fill vs sampled background, 3:1 threshold | Color & contrast group |
-| typography | Typography readability | line-height / letter-spacing / paragraph-spacing readability floors | Typography group |
+| typography | Typography readability | line-height / letter-spacing / paragraph-spacing readability floors (≥ 75% of font size, ≥ −6%, ≥ 70% of effective line-height) | Typography group |
 | text-reflow | Text Reflow | fixed-height TextNode check via `textAutoResize`; UI labels 1.4.4 / 1.4.10 / 1.4.12 | Typography group |
 | 2.4.4 | Link Purpose (In Context) | vague-text match on clickable copy (`read more`, `click here`, …) | Interactive elements group |
 | 2.4.6 | Headings and Labels | placeholder-copy match on clickables, form labels, and standalone text, gated by a numeric/URL/date/short-word reject filter | Content & labels group |
@@ -249,6 +252,14 @@ The marking page lists classifier-detected clickables, form inputs, icon-only ca
 
 ---
 
+## Metadata generator
+
+A **Generate metadata** secondary CTA (beneath Run audit) draws an editable `<Component> — Metadata` frame onto the canvas beside the selection — alt text + image role, accessible names, reading/focus order, form-field semantics, link/button intent. Full spec: `docs/metadata-generator.md`.
+
+Round-trip: `generate-metadata` → main builds the pure `SpecModel` (`buildSpecModel` in `src/checks/metadata-model.ts`) + image candidates → `metadata-model` → the UI iframe drafts image alt text via `runAltText` (only AI-backed field; gated on AI enabled, per-image `Promise.allSettled`, failure → empty slot) → `metadata-finalize` → main draws the frame (`src/main/spec-frame.ts`, Inter, neutral own palette) → `metadata-generated` / `metadata-error` → toast. Markers are honoured automatically (the DTO already applies Include/Exclude). Option C: every run is a new cascaded frame; nothing existing is read or mutated. Dev-Mode read-only / write failure surfaces as a clear error toast.
+
+---
+
 ## Locked decisions
 
 | # | Decision | Choice | Rationale |
@@ -279,6 +290,7 @@ The marking page lists classifier-detected clickables, form inputs, icon-only ca
 | 24 | Icon-wrapper clickable heuristic | Small near-square FRAME / INSTANCE with visible vector descendant and icon-ish name gets `icon-wrapper` signal | Catches unlabeled icon buttons for 2.4.4 / 2.5.8 without reusing non-text contrast detection |
 | 25 | Semantic status colors | `--status-pass` muted sage, `--status-flag` terracotta, `--status-unable` antique gold — applied to count-chip icons + section-label icons only. Severity dots stay plum; count text stays `--fg` | Restores at-a-glance scan without breaking the "one accent moment" rule (accent reserved for severity) |
 | 26 | Standards mapping | **By-reference (Rec A):** GIGW 3.0 §5.2 + IS 17802 web both adopt WCAG 2.1 AA by reference, so standards are derived at render time from a finding's WCAG code(s) — `Finding.criterion` stays single-SC. **Option B UI:** WCAG code is a native `<details>` summary; expanding reveals `WCAG <sc> · GIGW 3.0 §5.2 · IS 17802 web` | Honest with zero clause research; subtle (collapsed == unchanged + faint caret); no backend refactor |
+| 27 | Metadata generator | Pure `buildSpecModel(dto)` (no figma) is the single source of truth; UI fills image alt text via AI; main draws a fresh frame each run (Option C — no update/merge). Junk-filtered with `matchesPlaceholder` + a default-layer-name guard (not the broader 2.4.6 `isRejected`, which would blank valid short labels) | Testable model / glue split; designer keeps full control; spec in `docs/metadata-generator.md` |
 
 ---
 

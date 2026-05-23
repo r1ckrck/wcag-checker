@@ -91,6 +91,8 @@ Core criteria both versions share:
 | — | Typography readability | Line-height / letter-spacing / paragraph-spacing floors (a design-stage readability check, not a codified SC) |
 | — | Text reflow | Fixed-height text-box heuristic; surfaced in the UI as 1.4.4 · 1.4.10 · 1.4.12 |
 
+The plugin also generates a **handoff metadata frame** beside the selected component — alt text + image role (AI-drafted when AI is enabled), accessible names, reading / focus order, form-field semantics, and link / button intent — every value editable in Figma. See [`figma-plugin/docs/metadata-generator.md`](./figma-plugin/docs/metadata-generator.md).
+
 Plus an **AI-augmented visual review** for issues a deterministic check can't catch (visual hierarchy gaps, color-coded grouping, etc.) and **manual checks** always shown as a bottom note (1.3.3 Sensory Characteristics, 2.2.1 Timing Adjustable, 2.2.2 Pause/Stop/Hide, 2.5.1 Pointer Gestures + Motion Actuation).
 
 ---

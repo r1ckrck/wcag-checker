@@ -37,6 +37,8 @@ import {
   type MarkersFile,
 } from '../shared/markers.ts'
 import { buildAuditDTO } from '../read/index.ts'
+import { buildSpecModel } from '../checks/metadata-model.ts'
+import { drawSpecFrame } from './spec-frame.ts'
 import { collect } from '../read/traverse.ts'
 import { buildClickableElements } from '../read/interactivity.ts'
 import { buildFormInputElements } from '../read/form-input.ts'
@@ -47,6 +49,12 @@ import { tryExportAll } from './try-export-all.ts'
 // variant audit later without re-traversing the tree. Cleared on each new
 // run-audit / on errors.
 let lastDTO: AuditDTO | null = null
+
+// Metadata generator: the node selected when `generate-metadata` fired. The
+// frame is drawn at `metadata-finalize` time (after the UI's AI round-trip),
+// by which point the selection may have changed — so we pin the node id and
+// re-resolve it, drawing beside the originally-selected component.
+let pendingMetaNodeId: string | null = null
 
 const SUPPORTED_TYPES: ReadonlyArray<SupportedNodeType> = [
   'COMPONENT',
@@ -729,6 +737,58 @@ figma.ui.onmessage = async (msg: UIToMain) => {
         } catch (e) {
           lastDTO = null
           send({ kind: 'audit-error', error: String(e) })
+        }
+        return
+      }
+      case 'generate-metadata': {
+        const sel = figma.currentPage.selection
+        if (sel.length !== 1) {
+          send({ kind: 'metadata-error', error: 'Select exactly one component, instance, or frame.' })
+          return
+        }
+        const node = sel[0]
+        try {
+          let metaMarkers: MarkersFile = EMPTY_MARKERS_FILE
+          try {
+            const { markers } = await loadAndPruneMarkers()
+            metaMarkers = markers
+            currentFileMarkers = markers
+          } catch {
+            // Storage read failed — proceed without overrides.
+          }
+          const dto = await buildAuditDTO(node, {
+            markers: {
+              include: new Set(metaMarkers.include),
+              exclude: new Set(metaMarkers.exclude),
+            },
+          })
+          const model = buildSpecModel(dto)
+          const imageCandidates = await buildImageCandidates(dto)
+          pendingMetaNodeId = node.id
+          send({ kind: 'metadata-model', model, imageCandidates })
+        } catch (e) {
+          send({ kind: 'metadata-error', error: String(e) })
+        }
+        return
+      }
+      case 'metadata-finalize': {
+        try {
+          const id = pendingMetaNodeId
+          pendingMetaNodeId = null
+          const node = id ? await figma.getNodeByIdAsync(id).catch(() => null) : null
+          if (!node) {
+            send({ kind: 'metadata-error', error: 'The selected component is no longer available.' })
+            return
+          }
+          await drawSpecFrame(msg.model, node as SceneNode)
+          send({ kind: 'metadata-generated' })
+        } catch (e) {
+          // Dev Mode is read-only — createFrame / appendChild throw here.
+          const raw = String(e)
+          const error = /read-only|readonly|cannot|permission/i.test(raw)
+            ? 'Switch to editor mode to generate metadata.'
+            : raw
+          send({ kind: 'metadata-error', error })
         }
         return
       }

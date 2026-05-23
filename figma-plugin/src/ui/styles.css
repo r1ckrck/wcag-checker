@@ -877,6 +877,31 @@ p {
   display: inline-block;
 }
 
+/* Secondary CTA — quieter than the solid primary: ghost, hairline, shorter.
+   Sits beneath Run audit and never competes with it. */
+.btn.btn--secondary {
+  height: 26px;
+  margin-top: var(--space-2);
+  background: transparent;
+  color: var(--mute);
+  border: 1px solid var(--hairline);
+  font-size: 10px;
+}
+
+.btn.btn--secondary:not(:disabled):hover,
+.btn.btn--secondary:not(:disabled):focus-visible {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.btn.btn--secondary:disabled {
+  background: transparent;
+  color: var(--btn-fg-disabled);
+  border-color: var(--hairline-soft);
+  cursor: not-allowed;
+}
+
 /* ── Results / Manual sections ──────────────────────────────────── */
 
 .results {

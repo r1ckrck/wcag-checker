@@ -1,7 +1,7 @@
 {
   "name": "wcag-figma-plugin",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Maanak — accessibility checker for Figma (WCAG 2.1/2.2 AA · GIGW 3.0 · IS 17802)",
   "scripts": {
     "build": "node scripts/build.mjs",

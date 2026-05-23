@@ -5,6 +5,16 @@ import type { AuditDTO } from './dtos'
 import type { Finding, FindingsReport } from '../checks/findings.ts'
 import type { AiSettings } from './settings.ts'
 import type { MarkersFile } from './markers.ts'
+import type { SpecModel } from '../checks/metadata-model.ts'
+
+/** Raw image asset bytes for AI alt-text / image-of-text. Shared by
+ *  `audit-result` and `metadata-model`. */
+export interface ImageCandidate {
+  id: string
+  name: string
+  bytes: Uint8Array
+  mimeType: 'png' | 'jpeg' | 'webp' | 'gif'
+}
 
 export type UIToMain =
   | { kind: 'init' }
@@ -19,6 +29,9 @@ export type UIToMain =
   | { kind: 'markers-load' }
   | { kind: 'markers-save'; markers: MarkersFile }
   | { kind: 'marker-watch'; on: boolean }
+  // ── Metadata generator ────────────────────────────────────────────────
+  | { kind: 'generate-metadata' }
+  | { kind: 'metadata-finalize'; model: SpecModel }
 
 export type MainToUI =
   | { kind: 'state'; selection: SelectionInfo }
@@ -67,6 +80,10 @@ export type MainToUI =
       selection: AnyNodeSelectionInfo
       descendantInteractives: DescendantInteractive[]
     }
+  // ── Metadata generator round-trip ──────────────────────────────────────
+  | { kind: 'metadata-model'; model: SpecModel; imageCandidates: ImageCandidate[] }
+  | { kind: 'metadata-generated' }
+  | { kind: 'metadata-error'; error: string }
 
 export type MarkersErrorReason = 'no-file-key' | 'storage-failed' | 'parse-failed'
 

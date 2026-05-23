@@ -103,6 +103,12 @@ A **Mark** button in the header opens a full-panel page where designers can over
 
 Markers are stored per-user, per-file in `figma.clientStorage`, pruned of stale node IDs on every run. They feed Link Purpose (2.4.4) and Touch Target (2.5.8). Include-marked ancestors absorb their descendants so the audit treats the marked node as the whole target.
 
+## Generate accessibility metadata
+
+A **Generate metadata** secondary CTA beneath **Run audit** draws an editable `<Component> — Metadata` frame onto the canvas beside the selection. The frame captures authorial intent a developer needs at handoff — alt text + image role, accessible names for icons and interactive elements, reading / focus order, form-field semantics (label, input purpose, required, error message), and link / button intent. Values are pre-filled from existing detection where possible, junk-filtered against placeholder / default-layer-name patterns, and left as muted `⟨ add … ⟩` slots the designer types over otherwise.
+
+Image alt text is the only AI-drafted field; with AI enabled it's populated per image (one call each, failures fall back to slots), with AI off the slot stays empty. Every regeneration creates a new cascaded frame — existing frames are never read or modified, so designer edits in a previous frame are always preserved. Full spec: [`docs/metadata-generator.md`](./docs/metadata-generator.md).
+
 ## Layout
 
 ```
