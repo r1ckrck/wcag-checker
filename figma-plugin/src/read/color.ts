@@ -14,7 +14,7 @@ import type {
   RGB,
   RGBA,
 } from '../shared/dtos'
-import { compositeFills } from './compositing.ts'
+import { flattenFillStack } from './compositing.ts'
 
 const NON_SOLID_REASON: Record<string, ColorSourceUnresolvableReason> = {
   GRADIENT_LINEAR: 'gradient',
@@ -166,34 +166,21 @@ export async function resolveFills(
     return { hex: null, rgba: null, source: nonSolid.source }
   }
 
+  // `resolved` is in Figma fills order — bottom-to-top — so the last entry is
+  // the topmost paint. Flatten the stack into a single straight-alpha RGBA that
+  // preserves the combined alpha; the contrast calc later composites this over
+  // the real ancestor background. When the topmost paint is opaque this yields
+  // exactly that paint's color (everything beneath is occluded).
   const stack = resolved.map(r => r.rgba as RGBA)
-  // Composite over an opaque white sentinel so the *flat* color of the stack
-  // can be expressed as RGB. The actual contrast calc later composites this
-  // RGBA over the real ancestor background. Here we keep the topmost paint's
-  // RGBA so the consumer can re-composite with the right substrate.
-  // We return the topmost paint's rgba directly when only one fill exists; for
-  // multi-fill stacks we composite top-down to a flat RGBA approximation.
-  let flatRGBA: RGBA
-  if (stack.length === 1) {
-    flatRGBA = stack[0]
-  } else {
-    // Composite assuming an opaque white substrate to flatten — best-effort
-    // approximation when the consumer lacks substrate info. Most multi-fill
-    // layers in real designs are tinted overlays where this lands close.
-    const flatRGB = compositeFills(stack.slice(0, -1), [
-      stack[stack.length - 1][0],
-      stack[stack.length - 1][1],
-      stack[stack.length - 1][2],
-    ])
-    flatRGBA = [flatRGB[0], flatRGB[1], flatRGB[2], stack[0][3]] as const
-  }
+  const flatRGBA = flattenFillStack(stack)
 
   // Source: prefer style source if the node had a fillStyleId; otherwise the
-  // topmost paint's source.
+  // topmost (last) paint's source — that's the paint that defines the layer's
+  // visible color.
   const source: ColorSource =
     ctx.styleSource !== undefined
       ? { kind: 'style', ...ctx.styleSource }
-      : resolved[0].source
+      : resolved[resolved.length - 1].source
 
   return {
     hex: rgbToHex([flatRGBA[0], flatRGBA[1], flatRGBA[2]]),

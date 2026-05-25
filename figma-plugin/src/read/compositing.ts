@@ -24,3 +24,33 @@ export function compositeFills(stack: ReadonlyArray<RGBA>, bg: RGB): RGB {
   }
   return result
 }
+
+/** Straight-alpha "A over B" where both carry their own alpha. */
+function straightOver(top: RGBA, bottom: RGBA): RGBA {
+  const aT = top[3]
+  const aB = bottom[3]
+  const aOut = aT + aB * (1 - aT)
+  if (aOut === 0) return [0, 0, 0, 0] as const
+  const r = (top[0] * aT + bottom[0] * aB * (1 - aT)) / aOut
+  const g = (top[1] * aT + bottom[1] * aB * (1 - aT)) / aOut
+  const b = (top[2] * aT + bottom[2] * aB * (1 - aT)) / aOut
+  return [r, g, b, aOut] as const
+}
+
+/**
+ * Flatten a stack of straight-alpha paints into a single straight-alpha RGBA,
+ * preserving the stack's combined alpha so the result can be composited over
+ * the real substrate downstream.
+ *
+ * `stack` is in Figma fills order — bottom-to-top — so the LAST entry is the
+ * topmost paint. An opaque topmost paint yields exactly that paint's color
+ * (everything beneath it is occluded), which is the common case.
+ */
+export function flattenFillStack(stack: ReadonlyArray<RGBA>): RGBA {
+  if (stack.length === 0) return [0, 0, 0, 0] as const
+  let acc: RGBA = stack[0]
+  for (let i = 1; i < stack.length; i++) {
+    acc = straightOver(stack[i], acc)
+  }
+  return acc
+}

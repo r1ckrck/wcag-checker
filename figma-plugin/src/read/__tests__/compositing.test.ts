@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compositeFills, over } from '../compositing.ts'
+import { compositeFills, flattenFillStack, over } from '../compositing.ts'
 import type { RGB, RGBA } from '../../shared/dtos.ts'
 
 test('compositeFills — empty stack returns bg', () => {
@@ -33,6 +33,48 @@ test('compositeFills — two layers composite top-down', () => {
   assert.equal(Math.round(result[0]), 255)
   assert.equal(Math.round(result[1]), 128)
   assert.equal(Math.round(result[2]), 128)
+})
+
+test('flattenFillStack — empty stack is fully transparent', () => {
+  assert.deepEqual(flattenFillStack([]), [0, 0, 0, 0])
+})
+
+test('flattenFillStack — single fill returns itself', () => {
+  const stack: RGBA[] = [[200, 100, 50, 1]]
+  assert.deepEqual(flattenFillStack(stack), [200, 100, 50, 1])
+})
+
+test('flattenFillStack — opaque topmost (last) fill wins regardless of fills below', () => {
+  // bottom-to-top: red below, opaque blue on top → result is blue.
+  const stack: RGBA[] = [
+    [255, 0, 0, 1],
+    [0, 0, 255, 1],
+  ]
+  assert.deepEqual(flattenFillStack(stack), [0, 0, 255, 1])
+})
+
+test('flattenFillStack — semi-transparent topmost composites over the fill below', () => {
+  // bottom: opaque red. top: 50% white. result = 50/50 red+white, fully opaque.
+  const stack: RGBA[] = [
+    [255, 0, 0, 1],
+    [255, 255, 255, 0.5],
+  ]
+  const result = flattenFillStack(stack)
+  assert.equal(Math.round(result[0]), 255)
+  assert.equal(Math.round(result[1]), 128)
+  assert.equal(Math.round(result[2]), 128)
+  assert.equal(result[3], 1)
+})
+
+test('flattenFillStack — both fills semi-transparent keep combined alpha', () => {
+  // bottom: 50% red, top: 50% white over transparent substrate.
+  // aOut = 0.5 + 0.5*(1-0.5) = 0.75
+  const stack: RGBA[] = [
+    [255, 0, 0, 0.5],
+    [255, 255, 255, 0.5],
+  ]
+  const result = flattenFillStack(stack)
+  assert.equal(result[3], 0.75)
 })
 
 test('over — alpha=0 returns bg', () => {
